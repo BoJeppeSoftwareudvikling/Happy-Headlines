@@ -1,0 +1,26 @@
+# Agent / editor
+AGENTS.md
+.agents/
+.cursor/
+.vscode/
+
+# Secrets and local config
+**/appsettings.json
+**/appsettings.*.json
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs and temp
+*.log
+*.tmp
+*.swp
+*~
+
+# Docker
+*.pid
