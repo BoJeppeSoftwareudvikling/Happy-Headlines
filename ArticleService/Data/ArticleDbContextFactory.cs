@@ -1,6 +1,7 @@
 using ArticleService.Models;
 using Microsoft.EntityFrameworkCore;
 
+
 namespace ArticleService.Data;
 
 public class ArticleDbContextFactory(IConfiguration config)

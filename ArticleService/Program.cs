@@ -1,5 +1,5 @@
 using ArticleService.Data;
-using ArticleService.Models;
+using ArticleService.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,33 +7,14 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<ArticleDbContextFactory>();
+builder.Services.Configure<DatabaseInitializationOptions>(
+    builder.Configuration.GetSection(DatabaseInitializationOptions.SectionName));
+builder.Services.AddSingleton<ArticleDatabaseInitializer>();
 
 var app = builder.Build();
 
-var factory = app.Services.GetRequiredService<ArticleDbContextFactory>();
-var logger = app.Logger;
-
-foreach (var continent in Enum.GetValues<Continent>())
-{
-    var created = false;
-    for (var attempt = 1; attempt <= 20 && !created; attempt++)
-    {
-        try
-        {
-            using var db = factory.Create(continent);
-            db.Database.EnsureCreated();
-            created = true;
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "EnsureCreated failed for {Continent} (attempt {Attempt}/20)", continent, attempt);
-            Thread.Sleep(TimeSpan.FromSeconds(3));
-        }
-    }
-
-    if (!created)
-        throw new InvalidOperationException($"Could not create database for {continent}.");
-}
+var initializer = app.Services.GetRequiredService<ArticleDatabaseInitializer>();
+await initializer.InitializeAsync(app.Lifetime.ApplicationStopping);
 
 if (app.Environment.IsDevelopment())
 {
@@ -45,4 +26,4 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.Run();
+await app.RunAsync();
