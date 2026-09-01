@@ -1,16 +1,31 @@
 services:
   article-service:
+    image: article-service:latest
     build:
       context: .
       dockerfile: ArticleService/Dockerfile
+    ports:
+      - "8080:8080"
     environment:
-      - ASPNETCORE_URLS=http://+:80
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Development
+      DOTNET_EnableDiagnostics: "0"
+      ConnectionStrings__Africa: Server=sqlserver,1433;Database=ArticlesAfrica;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      ConnectionStrings__Asia: Server=sqlserver,1433;Database=ArticlesAsia;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      ConnectionStrings__Europe: Server=sqlserver,1433;Database=ArticlesEurope;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      ConnectionStrings__NorthAmerica: Server=sqlserver,1433;Database=ArticlesNorthAmerica;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      ConnectionStrings__SouthAmerica: Server=sqlserver,1433;Database=ArticlesSouthAmerica;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      ConnectionStrings__Oceania: Server=sqlserver,1433;Database=ArticlesOceania;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      ConnectionStrings__Antarctica: Server=sqlserver,1433;Database=ArticlesAntarctica;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      ConnectionStrings__Global: Server=sqlserver,1433;Database=ArticlesGlobal;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
     deploy:
       replicas: 3
+    depends_on:
+      - sqlserver
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
-      - SA_PASSWORD=Your_@Strong_Password123
-      - ACCEPT_EULA=Y
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
     ports:
-      - 1433:1433
+      - "1433:1433"

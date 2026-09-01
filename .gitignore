@@ -7,6 +7,7 @@ AGENTS.md
 # Secrets and local config
 **/appsettings.json
 **/appsettings.*.json
+!**/appsettings.example.json
 .env
 .env.*
 !.env.example

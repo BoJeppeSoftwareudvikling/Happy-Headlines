@@ -15,6 +15,9 @@ public class ArticleController(ArticleDbContextFactory factory) : ControllerBase
         return Ok(db.Articles.ToList());
     }
 
+    [HttpGet("instance")]
+    public ActionResult<object> Instance() => Ok(new { Hostname = Environment.MachineName });
+
     [HttpGet("{id:int}")]
     public ActionResult<Article> GetById(int id, [FromQuery] Continent continent)
     {
@@ -26,11 +29,18 @@ public class ArticleController(ArticleDbContextFactory factory) : ControllerBase
     [HttpPost]
     public ActionResult<Article> Create([FromBody] Article article)
     {
-        using var db = factory.Create(article.Continent);
-        db.Articles.Add(article);
+        var toSave = new Article
+        {
+            Title = article.Title,
+            Content = article.Content,
+            Continent = article.Continent
+        };
+
+        using var db = factory.Create(toSave.Continent);
+        db.Articles.Add(toSave);
         db.SaveChanges();
         return CreatedAtAction(nameof(GetById),
-            new { id = article.Id, continent = article.Continent }, article);
+            new { id = toSave.Id, continent = toSave.Continent }, toSave);
     }
 
     [HttpPut("{id:int}")]
