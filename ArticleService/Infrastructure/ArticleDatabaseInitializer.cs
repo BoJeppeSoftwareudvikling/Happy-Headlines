@@ -39,21 +39,31 @@ public class ArticleDatabaseInitializer
                 _logger.LogInformation("Database ready for {Continent}.", continent);
                 return;
             }
-            catch (Exception ex) when (attempt < _options.MaxAttempts)
+            catch (Exception ex)
             {
-                _logger.LogInformation(
+                if (attempt < _options.MaxAttempts)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "Database for {Continent} is not ready yet (attempt {Attempt}/{MaxAttempts}). Retrying in {DelaySeconds}s.",
+                        continent,
+                        attempt,
+                        _options.MaxAttempts,
+                        _options.DelaySeconds);
+
+                    await Task.Delay(TimeSpan.FromSeconds(_options.DelaySeconds), cancellationToken);
+                    continue;
+                }
+
+                _logger.LogError(
                     ex,
-                    "Database for {Continent} is not ready yet (attempt {Attempt}/{MaxAttempts}). Retrying in {DelaySeconds}s.",
+                    "Could not create database for {Continent} after {MaxAttempts} attempts.",
                     continent,
-                    attempt,
-                    _options.MaxAttempts,
-                    _options.DelaySeconds);
+                    _options.MaxAttempts);
 
-                await Task.Delay(TimeSpan.FromSeconds(_options.DelaySeconds), cancellationToken);
+                throw new InvalidOperationException(
+                    $"Could not create database for {continent} after {_options.MaxAttempts} attempts.",
+                    ex);
             }
-        }
-
-        throw new InvalidOperationException(
-            $"Could not create database for {continent} after {_options.MaxAttempts} attempts.");
     }
 }
