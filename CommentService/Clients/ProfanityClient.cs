@@ -46,17 +46,22 @@ public sealed class ProfanityClient(
         }
     }
 
-    private static bool IsTransientDependencyFailure(Exception exception, CancellationToken cancellationToken)
+private static bool IsTransientDependencyFailure(Exception exception, CancellationToken cancellationToken)
+{
+    if (exception is OperationCanceledException && cancellationToken.IsCancellationRequested)
     {
-        if (exception is OperationCanceledException && cancellationToken.IsCancellationRequested)
-        {
-            return false;
-        }
-
-        return exception is HttpRequestException
-            or TaskCanceledException
-            or TimeoutException;
+        return false;
     }
+
+    if (exception is HttpRequestException httpException)
+    {
+        var statusCode = httpException.StatusCode;
+        return statusCode is null
+            || statusCode == System.Net.HttpStatusCode.RequestTimeout
+            || (int)statusCode >= 500;
+    }
+
+    return exception is TaskCanceledException or TimeoutException;
 }
 
 public sealed class ProfanityServiceUnavailableException : Exception
