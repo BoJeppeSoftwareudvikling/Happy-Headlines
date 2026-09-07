@@ -120,7 +120,7 @@ public class ProfanityController(ProfanityDbContextFactory factory) : Controller
         return NoContent();
     }
 
-    private static string NormalizeWord(string word) => word.Trim().ToLowerInvariant();
+private static string NormalizeWord(string? word) => word?.Trim().ToLowerInvariant() ?? string.Empty;
 
     private static string WordPattern(string word) => $@"\b{Regex.Escape(word)}\b";
 }
