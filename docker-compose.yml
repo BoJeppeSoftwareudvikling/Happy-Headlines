@@ -22,6 +22,46 @@ services:
       replicas: 3
     depends_on:
       - sqlserver
+
+  comment-service:
+    image: comment-service:latest
+    build:
+      context: .
+      dockerfile: CommentService/Dockerfile
+    ports:
+      - "8081:8080"
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Development
+      DOTNET_EnableDiagnostics: "0"
+      ConnectionStrings__CommentDatabase: Server=comment-database,1433;Database=CommentDatabase;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      ProfanityService__BaseUrl: http://profanity-service:8080/
+      ProfanityService__TimeoutSeconds: 2
+      ProfanityService__FailureThreshold: 3
+      ProfanityService__BreakDurationSeconds: 30
+    deploy:
+      replicas: 2
+    depends_on:
+      - comment-database
+      - profanity-service
+
+  profanity-service:
+    image: profanity-service:latest
+    build:
+      context: .
+      dockerfile: ProfanityService/Dockerfile
+    ports:
+      - "8082:8080"
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Development
+      DOTNET_EnableDiagnostics: "0"
+      ConnectionStrings__ProfanityDatabase: Server=profanity-database,1433;Database=ProfanityDatabase;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+    deploy:
+      replicas: 2
+    depends_on:
+      - profanity-database
+
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
@@ -29,3 +69,19 @@ services:
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
     ports:
       - "1433:1433"
+
+  comment-database:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+    ports:
+      - "1434:1433"
+
+  profanity-database:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+    ports:
+      - "1435:1433"

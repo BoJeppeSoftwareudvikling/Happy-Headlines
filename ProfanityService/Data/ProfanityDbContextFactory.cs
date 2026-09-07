@@ -1,4 +1,4 @@
-sing Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 
 namespace ProfanityService.Data;
 

@@ -1,4 +1,4 @@
-namespace ProfanityService.Models;
+namespace ProfanityService.Dtos;
 
 public class ProfanityCheckRequest
 {

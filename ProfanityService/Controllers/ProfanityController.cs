@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProfanityService.Data;
+using ProfanityService.Dtos;
 using ProfanityService.Models;
 
 namespace ProfanityService.Controllers;

@@ -23,5 +23,9 @@ Desktop.ini
 *.swp
 *~
 
+# Build
+**/bin/
+**/obj/
+
 # Docker
 *.pid
