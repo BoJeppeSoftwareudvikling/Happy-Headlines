@@ -10,22 +10,97 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_ENVIRONMENT: Development
       DOTNET_EnableDiagnostics: "0"
-      ConnectionStrings__Africa: Server=sqlserver,1433;Database=ArticlesAfrica;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
-      ConnectionStrings__Asia: Server=sqlserver,1433;Database=ArticlesAsia;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
-      ConnectionStrings__Europe: Server=sqlserver,1433;Database=ArticlesEurope;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
-      ConnectionStrings__NorthAmerica: Server=sqlserver,1433;Database=ArticlesNorthAmerica;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
-      ConnectionStrings__SouthAmerica: Server=sqlserver,1433;Database=ArticlesSouthAmerica;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
-      ConnectionStrings__Oceania: Server=sqlserver,1433;Database=ArticlesOceania;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
-      ConnectionStrings__Antarctica: Server=sqlserver,1433;Database=ArticlesAntarctica;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
-      ConnectionStrings__Global: Server=sqlserver,1433;Database=ArticlesGlobal;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      ConnectionStrings__Africa: Server=article-db-sqlserver,1433;Database=ArticlesAfrica;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      ConnectionStrings__Asia: Server=article-db-sqlserver,1433;Database=ArticlesAsia;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      ConnectionStrings__Europe: Server=article-db-sqlserver,1433;Database=ArticlesEurope;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      ConnectionStrings__NorthAmerica: Server=article-db-sqlserver,1433;Database=ArticlesNorthAmerica;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      ConnectionStrings__SouthAmerica: Server=article-db-sqlserver,1433;Database=ArticlesSouthAmerica;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      ConnectionStrings__Oceania: Server=article-db-sqlserver,1433;Database=ArticlesOceania;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      ConnectionStrings__Antarctica: Server=article-db-sqlserver,1433;Database=ArticlesAntarctica;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      ConnectionStrings__Global: Server=article-db-sqlserver,1433;Database=ArticlesGlobal;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
     deploy:
       replicas: 3
     depends_on:
-      - sqlserver
-  sqlserver:
+      - article-db-sqlserver
+    networks:
+      - article-db
+
+  comment-service:
+    image: comment-service:latest
+    build:
+      context: .
+      dockerfile: CommentService/Dockerfile
+    ports:
+      - "5049:5049"
+    environment:
+      ASPNETCORE_URLS: http://+:5049
+      ASPNETCORE_ENVIRONMENT: Development
+      DOTNET_EnableDiagnostics: "0"
+      ConnectionStrings__CommentService: Server=comment-db-sqlserver,1433;Database=Comments;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      ProfanityService__BaseUrl: http://profanity-service:5050/
+      ProfanityService__TimeoutSeconds: "2"
+      ProfanityService__FailureThreshold: "3"
+      ProfanityService__BreakDurationSeconds: "30"
+    deploy:
+      replicas: 2
+    depends_on:
+      - comment-db-sqlserver
+    networks:
+      - comment-db
+      - moderation-link
+
+  profanity-service:
+    image: profanity-service:latest
+    build:
+      context: .
+      dockerfile: ProfanityService/Dockerfile
+    ports:
+      - "5050:5050"
+    environment:
+      ASPNETCORE_URLS: http://+:5050
+      ASPNETCORE_ENVIRONMENT: Development
+      DOTNET_EnableDiagnostics: "0"
+      ConnectionStrings__ProfanityService: Server=profanity-db-sqlserver,1433;Database=Profanity;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+    deploy:
+      replicas: 2
+    networks:
+      - profanity-db
+      - moderation-link
+    depends_on:
+      - profanity-db-sqlserver
+
+  article-db-sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
     ports:
-      - "1433:1433"
+      - "1437:1433"
+    networks:
+      - article-db
+  
+  comment-db-sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+    ports:
+      - "1435:1433"
+    networks:
+      - comment-db
+
+  profanity-db-sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+    ports:
+      - "1436:1433"
+    networks:
+      - profanity-db
+
+networks:
+  article-db:
+  comment-db:
+  profanity-db:
+  moderation-link:

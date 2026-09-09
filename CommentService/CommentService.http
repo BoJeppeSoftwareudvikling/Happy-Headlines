@@ -1,0 +1,35 @@
+@ArticleService_HostAddress = http://localhost:5048
+
+GET {{ArticleService_HostAddress}}/Article?continent=Europe
+Accept: application/json
+
+###
+
+GET {{ArticleService_HostAddress}}/Article/1?continent=Europe
+Accept: application/json
+
+###
+
+POST {{ArticleService_HostAddress}}/Article
+Content-Type: application/json
+
+{
+  "title": "Local park restored",
+  "content": "Volunteers replanted the riverbank.",
+  "continent": "Europe"
+}
+
+###
+
+PUT {{ArticleService_HostAddress}}/Article/1?continent=Europe
+Content-Type: application/json
+
+{
+  "title": "Local park restored",
+  "content": "The riverbank is now open to the public.",
+  "continent": "Europe"
+}
+
+###
+
+DELETE {{ArticleService_HostAddress}}/Article/1?continent=Europe
