@@ -65,5 +65,6 @@ public class ArticleDatabaseInitializer
                     $"Could not create database for {continent} after {_options.MaxAttempts} attempts.",
                     ex);
             }
+        }
     }
 }

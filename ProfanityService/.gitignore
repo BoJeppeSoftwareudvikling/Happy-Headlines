@@ -1,0 +1,67 @@
+# Build
+bin/
+obj/
+[Bb]uild/
+[Ll]og/
+[Oo]ut/
+artifacts/
+
+# NuGet
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# User-specific / IDE
+*.user
+*.userosscache
+*.suo
+*.userprefs
+.vs/
+.idea/
+*.rsuser
+
+# Test and coverage
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+
+# Publish / compile
+*.dll
+*.exe
+*.pdb
+*.cache
+*.ilk
+*.meta
+*.obj
+*.pch
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp_proj
+*.vspscc
+*.vssscc
+.publish/
+publish/
+
+# Secrets
+appsettings.json
+appsettings.*.json
+!appsettings.example.json
+*.pfx
+*.p12
+secrets.json
+
+# Local tooling
+*.dbmdl
+*.jfm
+.nuget/
