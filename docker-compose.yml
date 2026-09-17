@@ -1,4 +1,23 @@
 services:
+  draft-service:
+    image: draft-service:latest
+    build:
+      context: .
+      dockerfile: DraftService/Dockerfile
+    ports:
+      - "5051:5051"
+    environment:
+      ASPNETCORE_URLS: http://+:5051
+      ASPNETCORE_ENVIRONMENT: Development
+      DOTNET_EnableDiagnostics: "0"
+      ConnectionStrings__DraftService: Server=draft-db-sqlserver,1433;Database=Drafts;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+    deploy:
+      replicas: 2
+    depends_on:
+      - draft-db-sqlserver
+    networks:
+      - draft-db
+
   article-service:
     image: article-service:latest
     build:
@@ -93,6 +112,16 @@ services:
       - "1437:1433"
     networks:
       - article-db
+
+  draft-db-sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+    ports:
+      - "1438:1433"
+    networks:
+      - draft-db
   
   comment-db-sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -115,6 +144,7 @@ services:
       - profanity-db
 
 networks:
+  draft-db:
   article-db:
   comment-db:
   profanity-db:

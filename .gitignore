@@ -23,5 +23,9 @@ Desktop.ini
 *.swp
 *~
 
+# .NET build output
+**/bin/
+**/obj/
+
 # Docker
 *.pid
