@@ -4,6 +4,7 @@ WORKDIR /app
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY ["ArticleService/ArticleService.csproj", "ArticleService/"]
+COPY ["Monitoring/Monitoring.csproj", "Monitoring/"]
 RUN dotnet restore "ArticleService/ArticleService.csproj"
 COPY . .
 WORKDIR "/src/ArticleService"

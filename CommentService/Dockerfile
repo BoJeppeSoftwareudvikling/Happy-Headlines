@@ -4,6 +4,7 @@ WORKDIR /app
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY ["CommentService/CommentService.csproj", "CommentService/"]
+COPY ["Monitoring/Monitoring.csproj", "Monitoring/"]
 RUN dotnet restore "CommentService/CommentService.csproj"
 COPY . .
 WORKDIR "/src/CommentService"

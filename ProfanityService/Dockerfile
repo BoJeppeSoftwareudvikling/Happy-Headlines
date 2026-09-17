@@ -4,6 +4,7 @@ WORKDIR /app
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY ["ProfanityService/ProfanityService.csproj", "ProfanityService/"]
+COPY ["Monitoring/Monitoring.csproj", "Monitoring/"]
 RUN dotnet restore "ProfanityService/ProfanityService.csproj"
 COPY . .
 WORKDIR "/src/ProfanityService"

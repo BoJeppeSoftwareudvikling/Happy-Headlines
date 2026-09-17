@@ -3,6 +3,7 @@ using DraftService.Dtos;
 using DraftService.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Monitoring;
 
 namespace DraftService.Controllers;
 
@@ -15,18 +16,29 @@ public class DraftController(DraftDbContextFactory factory) : ControllerBase
         [FromQuery] string? publisherId,
         CancellationToken cancellationToken)
     {
+        using var activity = MonitorService.ActivitySource.StartActivity("GetDrafts");
+
+        var normalizedPublisherId = publisherId?.Trim();
         await using var db = factory.Create();
         var query = db.Drafts.AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(publisherId))
         {
-            var normalizedPublisherId = publisherId.Trim();
+            MonitorService.Log.Here().Debug("Entered if statement");
             query = query.Where(draft => draft.PublisherId == normalizedPublisherId);
+
         }
 
         var drafts = await query
             .OrderByDescending(draft => draft.UpdatedAtUtc)
             .ToListAsync(cancellationToken);
+
+        activity?.SetTag("draft.publisher_id", normalizedPublisherId);
+        MonitorService.Log
+            .Here()
+            .Information(
+                "Fetching drafts for publisher {PublisherId}",
+                normalizedPublisherId);
 
         return Ok(drafts);
     }

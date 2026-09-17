@@ -1,29 +1,39 @@
 using ProfanityService.Data;
 using ProfanityService.Infrastructure;
+using Monitoring;
 
-var builder = WebApplication.CreateBuilder(args);
+_ = MonitorService.TracerProvider;
 
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddSingleton<ProfanityDbContextFactory>();
-builder.Services.Configure<DatabaseInitializationOptions>(
-    builder.Configuration.GetSection(DatabaseInitializationOptions.SectionName));
-builder.Services.AddSingleton<ProfanityDatabaseInitializer>();
-
-var app = builder.Build();
-
-var initializer = app.Services.GetRequiredService<ProfanityDatabaseInitializer>();
-await initializer.InitializeAsync(app.Lifetime.ApplicationStopping);
-
-if (app.Environment.IsDevelopment())
+try
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    var builder = WebApplication.CreateBuilder(args);
+
+    builder.Services.AddControllers();
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen();
+    builder.Services.AddSingleton<ProfanityDbContextFactory>();
+    builder.Services.Configure<DatabaseInitializationOptions>(
+        builder.Configuration.GetSection(DatabaseInitializationOptions.SectionName));
+    builder.Services.AddSingleton<ProfanityDatabaseInitializer>();
+
+    var app = builder.Build();
+
+    var initializer = app.Services.GetRequiredService<ProfanityDatabaseInitializer>();
+    await initializer.InitializeAsync(app.Lifetime.ApplicationStopping);
+
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+    }
+
+    app.UseAuthorization();
+
+    app.MapControllers();
+
+    await app.RunAsync();
 }
-
-app.UseAuthorization();
-
-app.MapControllers();
-
-await app.RunAsync();
+finally
+{
+    MonitorService.Shutdown();
+}

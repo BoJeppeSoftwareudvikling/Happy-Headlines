@@ -11,12 +11,18 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       DOTNET_EnableDiagnostics: "0"
       ConnectionStrings__DraftService: Server=draft-db-sqlserver,1433;Database=Drafts;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      MONITORING_SERVICE_NAME: DraftService
+      MONITORING_SEQ_URL: http://seq:5341/
+      MONITORING_ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
     deploy:
       replicas: 2
     depends_on:
       - draft-db-sqlserver
+      - seq
+      - zipkin
     networks:
       - draft-db
+      - monitoring
 
   article-service:
     image: article-service:latest
@@ -37,12 +43,18 @@ services:
       ConnectionStrings__Oceania: Server=article-db-sqlserver,1433;Database=ArticlesOceania;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
       ConnectionStrings__Antarctica: Server=article-db-sqlserver,1433;Database=ArticlesAntarctica;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
       ConnectionStrings__Global: Server=article-db-sqlserver,1433;Database=ArticlesGlobal;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      MONITORING_SERVICE_NAME: ArticleService
+      MONITORING_SEQ_URL: http://seq:5341/
+      MONITORING_ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
     deploy:
       replicas: 3
     depends_on:
       - article-db-sqlserver
+      - seq
+      - zipkin
     networks:
       - article-db
+      - monitoring
 
   comment-service:
     image: comment-service:latest
@@ -60,13 +72,19 @@ services:
       ProfanityService__TimeoutSeconds: "2"
       ProfanityService__FailureThreshold: "3"
       ProfanityService__BreakDurationSeconds: "30"
+      MONITORING_SERVICE_NAME: CommentService
+      MONITORING_SEQ_URL: http://seq:5341/
+      MONITORING_ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
     deploy:
       replicas: 2
     depends_on:
       - comment-db-sqlserver
+      - seq
+      - zipkin
     networks:
       - comment-db
       - moderation-link
+      - monitoring
 
   profanity-service:
     image: profanity-service:latest
@@ -80,28 +98,39 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       DOTNET_EnableDiagnostics: "0"
       ConnectionStrings__ProfanityService: Server=profanity-db-sqlserver,1433;Database=Profanity;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      MONITORING_SERVICE_NAME: ProfanityService
+      MONITORING_SEQ_URL: http://seq:5341/
+      MONITORING_ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
     deploy:
       replicas: 2
     networks:
       - profanity-db
       - moderation-link
+      - monitoring
     depends_on:
       - profanity-db-sqlserver
+      - seq
+      - zipkin
 
   seq:
     image: datalust/seq
     ports:
-      - "5341:5341"
-      - "5342:80"
+      - "127.0.0.1:5341:5341"
+      - "127.0.0.1:5342:80"
     volumes:
       - happy_headlines_seq_data:/data
     environment:
       ACCEPT_EULA: "Y"
+      SEQ_FIRSTRUN_NOAUTHENTICATION: "True"
+    networks:
+      - monitoring
 
   zipkin:
     image: openzipkin/zipkin
     ports:
       - "9411:9411"
+    networks:
+      - monitoring
 
   article-db-sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -149,6 +178,7 @@ networks:
   comment-db:
   profanity-db:
   moderation-link:
+  monitoring:
 
 volumes:
   happy_headlines_seq_data:
