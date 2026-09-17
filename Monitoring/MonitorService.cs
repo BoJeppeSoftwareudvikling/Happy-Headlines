@@ -38,6 +38,8 @@ public static class MonitorService
 
         TracerProvider = Sdk.CreateTracerProviderBuilder()
             .AddSource(ActivitySource.Name)
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
             .SetResourceBuilder(
                 ResourceBuilder.CreateDefault().AddService(ServiceName))
             .AddConsoleExporter()
