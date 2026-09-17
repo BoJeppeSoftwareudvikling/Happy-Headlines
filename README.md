@@ -9,17 +9,19 @@ The repo holds architecture documentation (C4) and the services that get added a
 ## Layout
 
 ```text
+DraftService/       ASP.NET Core Web API (publisher article drafts)
 ArticleService/     ASP.NET Core Web API (articles, z-axis by continent)
 CommentService/     ASP.NET Core Web API (comments + Polly circuit breaker)
 ProfanityService/   ASP.NET Core Web API (profanity word list)
 docs/               Architecture notes and C4 diagrams
-docker-compose.yml  Three APIs + three SQL Server instances (Swarm stack)
+docker-compose.yml  Four APIs + four SQL Server instances (Swarm stack)
 .env.example        Template for SQL password (copy to .env)
 ```
 
 Secrets are not committed. Copy:
 
 - `.env.example` → `.env`
+- `DraftService/appsettings.example.json` → `appsettings.json`
 - `ArticleService/appsettings.example.json` → `appsettings.json` (and `appsettings.Development.json` for `dotnet run`)
 - `CommentService/appsettings.example.json` → `appsettings.json`
 - `ProfanityService/appsettings.example.json` → `appsettings.json`
@@ -49,9 +51,9 @@ If the node is already in a swarm, skip `swarm init`. If `swarm init` cannot pic
 docker swarm init --advertise-addr 127.0.0.1
 ```
 
-Default replicas in `docker-compose.yml`: ArticleService **3**, CommentService **2**, ProfanityService **2**, one replica per SQL Server.
+Default replicas in `docker-compose.yml`: DraftService **2**, ArticleService **3**, CommentService **2**, ProfanityService **2**, one replica per SQL Server.
 
-Each API can reach only its own database network (`article-db`, `comment-db`, `profanity-db`). CommentService and ProfanityService also share `moderation-link` for the direct HTTP filter call.
+Each API can reach only its own database network (`draft-db`, `article-db`, `comment-db`, `profanity-db`). CommentService and ProfanityService also share `moderation-link` for the direct HTTP filter call.
 
 Useful checks:
 
@@ -65,11 +67,13 @@ SQL Server can take 20–30 seconds before `Database ready` appears in the API l
 Use **`http://127.0.0.1`**, not `localhost`. Swarm’s published port is IPv4; `localhost` often resolves to IPv6 and the request hangs.
 
 - Articles: http://127.0.0.1:8080/swagger
+- Drafts: http://127.0.0.1:5051/swagger
 - Comments: http://127.0.0.1:5049/swagger
 - Profanity: http://127.0.0.1:5050/swagger
 - Which Article replica answered: http://127.0.0.1:8080/Article/instance
+- Which Draft replica answered: http://127.0.0.1:5051/Draft/instance
 
-Host SQL ports (DBeaver: SQL Server, `sa`, trust server certificate): articles **1437**, comments **1435**, profanity **1436**. A native SQL Server can keep **1433** (and often **1434** for DAC).
+Host SQL ports (DBeaver: SQL Server, `sa`, trust server certificate): drafts **1438**, articles **1437**, comments **1435**, profanity **1436**. A native SQL Server can keep **1433** (and often **1434** for DAC).
 
 ### Chaos: stop ProfanityService
 
@@ -106,13 +110,14 @@ Do not use `docker compose up` for the full stack while `deploy.replicas` is gre
 Start only the databases:
 
 ```bash
-docker compose up article-db-sqlserver comment-db-sqlserver profanity-db-sqlserver -d
+docker compose up draft-db-sqlserver article-db-sqlserver comment-db-sqlserver profanity-db-sqlserver -d
 ```
 
 If the stack is already running, skip this and use the Swarm SQL ports below.
 
 | Service | `dotnet run` | Swagger |
 |---|---|---|
+| DraftService | `http://localhost:5051` | http://localhost:5051/swagger |
 | ArticleService | `http://localhost:5048` | http://localhost:5048/swagger |
 | CommentService | `http://localhost:5049` | http://localhost:5049/swagger |
 | ProfanityService | `http://localhost:5050` | http://localhost:5050/swagger |
