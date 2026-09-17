@@ -69,6 +69,21 @@ services:
     depends_on:
       - profanity-db-sqlserver
 
+  seq:
+    image: datalust/seq
+    ports:
+      - "5341:5341"
+      - "5342:80"
+    volumes:
+      - happy_headlines_seq_data:/data
+    environment:
+      ACCEPT_EULA: "Y"
+
+  zipkin:
+    image: openzipkin/zipkin
+    ports:
+      - "9411:9411"
+
   article-db-sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
@@ -104,3 +119,6 @@ networks:
   comment-db:
   profanity-db:
   moderation-link:
+
+volumes:
+  happy_headlines_seq_data:

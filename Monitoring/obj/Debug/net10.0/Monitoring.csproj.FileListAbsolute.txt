@@ -1,0 +1,13 @@
+/home/bo/Obsidian/02 Projects/Happy-Headlines/Monitoring/obj/Debug/net10.0/Monitoring.csproj.AssemblyReference.cache
+/home/bo/Obsidian/02 Projects/Happy-Headlines/Monitoring/obj/Debug/net10.0/Monitoring.GeneratedMSBuildEditorConfig.editorconfig
+/home/bo/Obsidian/02 Projects/Happy-Headlines/Monitoring/obj/Debug/net10.0/Monitoring.AssemblyInfoInputs.cache
+/home/bo/Obsidian/02 Projects/Happy-Headlines/Monitoring/obj/Debug/net10.0/Monitoring.AssemblyInfo.cs
+/home/bo/Obsidian/02 Projects/Happy-Headlines/Monitoring/obj/Debug/net10.0/Monitoring.csproj.CoreCompileInputs.cache
+/home/bo/Obsidian/02 Projects/Happy-Headlines/Monitoring/obj/Debug/net10.0/Monitoring.sourcelink.json
+/home/bo/Obsidian/02 Projects/Happy-Headlines/Monitoring/bin/Debug/net10.0/Monitoring.deps.json
+/home/bo/Obsidian/02 Projects/Happy-Headlines/Monitoring/bin/Debug/net10.0/Monitoring.dll
+/home/bo/Obsidian/02 Projects/Happy-Headlines/Monitoring/bin/Debug/net10.0/Monitoring.pdb
+/home/bo/Obsidian/02 Projects/Happy-Headlines/Monitoring/obj/Debug/net10.0/Monitoring.dll
+/home/bo/Obsidian/02 Projects/Happy-Headlines/Monitoring/obj/Debug/net10.0/refint/Monitoring.dll
+/home/bo/Obsidian/02 Projects/Happy-Headlines/Monitoring/obj/Debug/net10.0/Monitoring.pdb
+/home/bo/Obsidian/02 Projects/Happy-Headlines/Monitoring/obj/Debug/net10.0/ref/Monitoring.dll
