@@ -1,5 +1,6 @@
 using ArticleService.Data;
 using ArticleService.Models;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace ArticleService.Infrastructure;
@@ -36,6 +37,7 @@ public class ArticleDatabaseInitializer
             {
                 await using var db = _factory.Create(continent);
                 await db.Database.EnsureCreatedAsync(cancellationToken);
+                await EnsureQueueMessageSchemaAsync(db, cancellationToken);
                 _logger.LogInformation("Database ready for {Continent}.", continent);
                 return;
             }
@@ -66,5 +68,30 @@ public class ArticleDatabaseInitializer
                     ex);
             }
         }
+    }
+
+    private static Task EnsureQueueMessageSchemaAsync(
+        ArticleDbContext db,
+        CancellationToken cancellationToken)
+    {
+        return db.Database.ExecuteSqlRawAsync(
+            """
+            IF COL_LENGTH(N'[Articles]', N'SourceMessageId') IS NULL
+            BEGIN
+                ALTER TABLE [Articles] ADD [SourceMessageId] uniqueidentifier NULL;
+            END;
+
+            IF NOT EXISTS (
+                SELECT 1
+                FROM sys.indexes
+                WHERE [name] = N'IX_Articles_SourceMessageId'
+                  AND [object_id] = OBJECT_ID(N'[Articles]'))
+            BEGIN
+                CREATE UNIQUE INDEX [IX_Articles_SourceMessageId]
+                    ON [Articles] ([SourceMessageId])
+                    WHERE [SourceMessageId] IS NOT NULL;
+            END;
+            """,
+            cancellationToken);
     }
 }
