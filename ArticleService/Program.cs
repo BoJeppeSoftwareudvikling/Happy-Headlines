@@ -1,5 +1,7 @@
 using ArticleService.Data;
 using ArticleService.Infrastructure;
+using ArticleService.Messaging;
+using Messaging;
 using Monitoring;
 
 _ = MonitorService.TracerProvider;
@@ -15,6 +17,9 @@ try
     builder.Services.Configure<DatabaseInitializationOptions>(
         builder.Configuration.GetSection(DatabaseInitializationOptions.SectionName));
     builder.Services.AddSingleton<ArticleDatabaseInitializer>();
+    builder.Services.Configure<RabbitMqOptions>(
+        builder.Configuration.GetSection(RabbitMqOptions.SectionName));
+    builder.Services.AddHostedService<ArticlePublishedConsumer>();
 
     var app = builder.Build();
 

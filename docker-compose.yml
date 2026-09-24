@@ -46,14 +46,78 @@ services:
       MONITORING_SERVICE_NAME: ArticleService
       MONITORING_SEQ_URL: http://seq:5341/
       MONITORING_ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: "5672"
+      RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER}
+      RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS}
     deploy:
       replicas: 3
     depends_on:
       - article-db-sqlserver
+      - rabbitmq
       - seq
       - zipkin
     networks:
       - article-db
+      - article-queue
+      - monitoring
+
+  publisher-service:
+    image: publisher-service:latest
+    build:
+      context: .
+      dockerfile: PublisherService/Dockerfile
+    ports:
+      - "5052:5052"
+    environment:
+      ASPNETCORE_URLS: http://+:5052
+      ASPNETCORE_ENVIRONMENT: Development
+      DOTNET_EnableDiagnostics: "0"
+      ProfanityService__BaseUrl: http://profanity-service:5050/
+      ProfanityService__TimeoutSeconds: "2"
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: "5672"
+      RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER}
+      RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS}
+      MONITORING_SERVICE_NAME: PublisherService
+      MONITORING_SEQ_URL: http://seq:5341/
+      MONITORING_ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+    deploy:
+      replicas: 2
+    depends_on:
+      - profanity-service
+      - rabbitmq
+      - seq
+      - zipkin
+    networks:
+      - moderation-link
+      - article-queue
+      - monitoring
+
+  newsletter-service:
+    image: newsletter-service:latest
+    build:
+      context: .
+      dockerfile: NewsletterService/Dockerfile
+    ports:
+      - "5053:5053"
+    environment:
+      ASPNETCORE_URLS: http://+:5053
+      ASPNETCORE_ENVIRONMENT: Development
+      DOTNET_EnableDiagnostics: "0"
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: "5672"
+      RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER}
+      RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS}
+      MONITORING_SERVICE_NAME: NewsletterService
+      MONITORING_SEQ_URL: http://seq:5341/
+      MONITORING_ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+    depends_on:
+      - rabbitmq
+      - seq
+      - zipkin
+    networks:
+      - article-queue
       - monitoring
 
   comment-service:
@@ -132,6 +196,24 @@ services:
     networks:
       - monitoring
 
+  rabbitmq:
+    image: rabbitmq:4-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - happy_headlines_rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - article-queue
+
   article-db-sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
@@ -178,7 +260,9 @@ networks:
   comment-db:
   profanity-db:
   moderation-link:
+  article-queue:
   monitoring:
 
 volumes:
   happy_headlines_seq_data:
+  happy_headlines_rabbitmq_data:
