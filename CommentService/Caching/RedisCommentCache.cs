@@ -24,6 +24,12 @@ public sealed class RedisCommentCache(
     private const string MissesKey =
         "happy-headlines:{comments}:misses";
 
+    private const string EvictionsKey =
+        "happy-headlines:{comments}:evictions";
+
+    private const string InvalidationsKey =
+        "happy-headlines:{comments}:invalidations";
+
     private const string GetScript =
         """
         local value = redis.call('GET', KEYS[1])
@@ -61,6 +67,8 @@ public sealed class RedisCommentCache(
                 redis.call('DEL', victim)
                 redis.call('ZREM', KEYS[2], victim)
             end
+
+            redis.call('INCRBY', KEYS[4], overflow)
         end
 
         return redis.call('ZCARD', KEYS[2])
@@ -68,9 +76,14 @@ public sealed class RedisCommentCache(
 
     private const string RemoveScript =
         """
-        redis.call('DEL', KEYS[1])
+        local deleted = redis.call('DEL', KEYS[1])
         redis.call('ZREM', KEYS[2], KEYS[1])
-        return 1
+
+        if deleted > 0 then
+            redis.call('INCR', KEYS[3])
+        end
+
+        return deleted
         """;
 
     private static readonly JsonSerializerOptions JsonOptions =
@@ -135,7 +148,7 @@ public sealed class RedisCommentCache(
 
             await Database.ScriptEvaluateAsync(
                 SetAndTrimScript,
-                [entryKey, LruKey, SequenceKey],
+                [entryKey, LruKey, SequenceKey, EvictionsKey],
                 [serialized, Capacity]);
         }
         catch (RedisException ex)
@@ -155,7 +168,7 @@ public sealed class RedisCommentCache(
         {
             await Database.ScriptEvaluateAsync(
                 RemoveScript,
-                [entryKey, LruKey]);
+                [entryKey, LruKey, InvalidationsKey]);
         }
         catch (RedisException ex)
         {
@@ -169,14 +182,21 @@ public sealed class RedisCommentCache(
     public async Task<CacheMetricsSnapshot> GetMetricsAsync()
     {
         var values = await Database.StringGetAsync(
-            [HitsKey, MissesKey]);
+            [
+                HitsKey,
+                MissesKey,
+                EvictionsKey,
+                InvalidationsKey
+            ]);
 
         var entries = await Database.SortedSetLengthAsync(LruKey);
 
         return new CacheMetricsSnapshot(
             ParseLong(values[0]),
             ParseLong(values[1]),
-            entries);
+            entries,
+            Evictions: ParseLong(values[2]),
+            Invalidations: ParseLong(values[3]));
     }
 
     private static RedisKey EntryKey(int articleId) =>

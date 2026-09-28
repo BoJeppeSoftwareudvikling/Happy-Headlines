@@ -1,0 +1,116 @@
+groups:
+  - name: happy-headlines-cache
+    rules:
+      - alert: CacheMetricsTargetDown
+        expr: up{job=~"article-cache|comment-cache"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: happy-headlines-cache
+          category: observability
+        annotations:
+          summary: "{{ $labels.job }} metrics target is down"
+          description: "Prometheus has been unable to scrape {{ $labels.job }} for at least 30 seconds. This is an observability or availability signal, not proof of user impact by itself."
+
+      - alert: CacheDependencyUnavailable
+        expr: happy_headlines_cache_dependency_up == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: happy-headlines-cache
+          category: technical-signal
+        annotations:
+          summary: "{{ $labels.cache }} Redis dependency is unavailable"
+          description: "The service metrics endpoint is responding, but it cannot read its Redis cache metrics. Requests may be falling back to the database."
+
+      - alert: ServiceErrorRateHigh
+        expr: |
+          (
+            sum by (service) (increase(happy_headlines_service_errors_total[5m]))
+            /
+            clamp_min(
+              sum by (service) (increase(happy_headlines_service_requests_total[5m])),
+              1
+            )
+          ) > 0.05
+          and on (service)
+          sum by (service) (increase(happy_headlines_service_requests_total[5m])) >= 20
+        for: 2m
+        labels:
+          severity: critical
+          service: happy-headlines-cache
+          category: service-impact
+        annotations:
+          summary: "{{ $labels.service }} has a high server-error rate"
+          description: "More than 5% of at least 20 requests in the last five minutes ended in 5xx responses. This is evidence of a service-quality incident."
+
+      - alert: ServiceLatencyHigh
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (service, le) (
+              rate(happy_headlines_service_request_duration_seconds_bucket[5m])
+            )
+          ) > 1
+          and on (service)
+          sum by (service) (increase(happy_headlines_service_requests_total[5m])) >= 20
+        for: 2m
+        labels:
+          severity: critical
+          service: happy-headlines-cache
+          category: service-impact
+        annotations:
+          summary: "{{ $labels.service }} p95 latency is high"
+          description: "The 95th-percentile response time has exceeded one second with at least 20 requests in the last five minutes. This is evidence of degraded service quality."
+
+      - alert: CacheHitRatioLow
+        expr: |
+          (
+            sum by (cache) (increase(happy_headlines_cache_hits_total[10m]))
+            /
+            clamp_min(
+              sum by (cache) (increase(happy_headlines_cache_hits_total[10m]))
+              +
+              sum by (cache) (increase(happy_headlines_cache_misses_total[10m])),
+              1
+            )
+          ) < 0.7
+          and on (cache)
+          (
+            sum by (cache) (increase(happy_headlines_cache_hits_total[10m]))
+            +
+            sum by (cache) (increase(happy_headlines_cache_misses_total[10m]))
+          ) >= 20
+        for: 5m
+        labels:
+          severity: warning
+          service: happy-headlines-cache
+          category: cache-degradation
+        annotations:
+          summary: "{{ $labels.cache }} cache hit ratio is low"
+          description: "The {{ $labels.cache }} cache hit ratio has stayed below 70% with at least 20 lookups in the last 10 minutes. This is a cache-degradation signal, not an incident by itself."
+
+      - alert: ArticleCacheRefreshStale
+        expr: |
+          time()
+          - happy_headlines_cache_last_refresh_success_timestamp_seconds{cache="article"}
+          > 90
+        for: 30s
+        labels:
+          severity: warning
+          service: happy-headlines-cache
+          category: technical-signal
+        annotations:
+          summary: "ArticleCache refresh is stale"
+          description: "No successful ArticleCache refresh has been recorded for more than 90 seconds. The configured demo refresh interval is 30 seconds."
+
+      - alert: CommentCacheCapacityInvariantBroken
+        expr: happy_headlines_cache_entries{cache="comment"} > 30
+        for: 30s
+        labels:
+          severity: critical
+          service: happy-headlines-cache
+          category: technical-signal
+        annotations:
+          summary: "CommentCache contains more than 30 article entries"
+          description: "The CommentCache LRU capacity invariant is broken: {{ $value }} entries are currently reported."

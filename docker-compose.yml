@@ -224,6 +224,7 @@ services:
       - "127.0.0.1:9090:9090"
     volumes:
       - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/cache-alerts.yml:/etc/prometheus/rules/cache-alerts.yml:ro
       - happy_headlines_prometheus_data:/prometheus
     networks:
       - monitoring

@@ -14,5 +14,12 @@ public interface IArticleCache
         DateTimeOffset now,
         TimeSpan refreshInterval);
 
+    Task RecordRefreshSuccessAsync(
+        DateTimeOffset completedAt,
+        TimeSpan duration,
+        int loadedEntries);
+
+    Task RecordRefreshFailureAsync();
+
     Task<CacheMetricsSnapshot> GetMetricsAsync();
 }

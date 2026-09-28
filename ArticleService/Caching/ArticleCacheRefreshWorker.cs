@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using ArticleService.Data;
 using ArticleService.Models;
 using ArticleService.Options;
@@ -32,6 +33,8 @@ public sealed class ArticleCacheRefreshWorker(
         TimeSpan refreshInterval,
         CancellationToken cancellationToken)
     {
+        var stopwatch = Stopwatch.StartNew();
+
         try
         {
             var now = DateTimeOffset.UtcNow;
@@ -55,6 +58,11 @@ public sealed class ArticleCacheRefreshWorker(
 
             await cache.ReplaceAsync(articles);
 
+            await cache.RecordRefreshSuccessAsync(
+                DateTimeOffset.UtcNow,
+                stopwatch.Elapsed,
+                articles.Count);
+
             logger.LogInformation(
                 "ArticleCache refreshed with {ArticleCount} global articles published since {Cutoff}.",
                 articles.Count,
@@ -67,6 +75,8 @@ public sealed class ArticleCacheRefreshWorker(
         }
         catch (Exception ex)
         {
+            await cache.RecordRefreshFailureAsync();
+
             logger.LogError(
                 ex,
                 "ArticleCache refresh failed. The previous cache remains active.");

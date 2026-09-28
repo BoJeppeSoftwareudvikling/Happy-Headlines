@@ -19,6 +19,21 @@ public sealed class RedisArticleCache(
     private const string MissesKey =
         "happy-headlines:{articles}:misses";
 
+    private const string RefreshMetricsKey =
+        "happy-headlines:{articles}:refresh-metrics";
+
+    private const string RefreshFailuresField =
+        "failures";
+
+    private const string LastRefreshSuccessField =
+        "last-success-unix-seconds";
+
+    private const string LastRefreshDurationField =
+        "last-duration-seconds";
+
+    private const string LastRefreshLoadedEntriesField =
+        "last-loaded-entries";
+
     private const string ReadyField = "__ready__";
 
     private const string GetScript =
@@ -191,10 +206,64 @@ public sealed class RedisArticleCache(
             When.NotExists);
     }
 
+    public async Task RecordRefreshSuccessAsync(
+        DateTimeOffset completedAt,
+        TimeSpan duration,
+        int loadedEntries)
+    {
+        try
+        {
+            await Database.HashSetAsync(
+                RefreshMetricsKey,
+                [
+                    new HashEntry(
+                        LastRefreshSuccessField,
+                        completedAt.ToUnixTimeSeconds()),
+                    new HashEntry(
+                        LastRefreshDurationField,
+                        duration.TotalSeconds),
+                    new HashEntry(
+                        LastRefreshLoadedEntriesField,
+                        loadedEntries)
+                ]);
+        }
+        catch (RedisException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Could not record successful ArticleCache refresh metrics.");
+        }
+    }
+
+    public async Task RecordRefreshFailureAsync()
+    {
+        try
+        {
+            await Database.HashIncrementAsync(
+                RefreshMetricsKey,
+                RefreshFailuresField);
+        }
+        catch (RedisException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Could not record failed ArticleCache refresh metrics.");
+        }
+    }
+
     public async Task<CacheMetricsSnapshot> GetMetricsAsync()
     {
         var values = await Database.StringGetAsync(
             [HitsKey, MissesKey]);
+
+        var refreshValues = await Database.HashGetAsync(
+            RefreshMetricsKey,
+            [
+                RefreshFailuresField,
+                LastRefreshSuccessField,
+                LastRefreshDurationField,
+                LastRefreshLoadedEntriesField
+            ]);
 
         var storedFields = await Database.HashLengthAsync(EntriesKey);
         var logicalEntries = Math.Max(0, storedFields - 1);
@@ -202,13 +271,29 @@ public sealed class RedisArticleCache(
         return new CacheMetricsSnapshot(
             ParseLong(values[0]),
             ParseLong(values[1]),
-            logicalEntries);
+            logicalEntries,
+            RefreshFailures: ParseLong(refreshValues[0]),
+            LastRefreshSuccessUnixSeconds: ParseLong(
+                refreshValues[1]),
+            LastRefreshDurationSeconds: ParseDouble(
+                refreshValues[2]),
+            LastRefreshLoadedEntries: ParseLong(
+                refreshValues[3]));
     }
 
     private static long ParseLong(RedisValue value) =>
         long.TryParse(
             value.ToString(),
             NumberStyles.Integer,
+            CultureInfo.InvariantCulture,
+            out var parsed)
+            ? parsed
+            : 0;
+
+    private static double ParseDouble(RedisValue value) =>
+        double.TryParse(
+            value.ToString(),
+            NumberStyles.Float,
             CultureInfo.InvariantCulture,
             out var parsed)
             ? parsed

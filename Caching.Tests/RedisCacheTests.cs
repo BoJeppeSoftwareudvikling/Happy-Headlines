@@ -100,6 +100,37 @@ public sealed class RedisCacheTests(RedisFixture fixture)
     }
 
     [Fact]
+    public async Task Article_cache_records_refresh_diagnostics()
+    {
+        await fixture.ResetArticleAsync();
+
+        var cache = new RedisArticleCache(
+            fixture.ArticleRedis,
+            NullLogger<RedisArticleCache>.Instance);
+
+        var completedAt = DateTimeOffset.FromUnixTimeSeconds(
+            1_800_000_000);
+
+        await cache.RecordRefreshSuccessAsync(
+            completedAt,
+            TimeSpan.FromMilliseconds(250),
+            12);
+        await cache.RecordRefreshFailureAsync();
+
+        var metrics = await cache.GetMetricsAsync();
+
+        Assert.Equal(1L, metrics.RefreshFailures);
+        Assert.Equal(
+            completedAt.ToUnixTimeSeconds(),
+            metrics.LastRefreshSuccessUnixSeconds);
+        Assert.Equal(
+            0.25,
+            metrics.LastRefreshDurationSeconds,
+            precision: 3);
+        Assert.Equal(12L, metrics.LastRefreshLoadedEntries);
+    }
+
+    [Fact]
     public async Task Comment_cache_populates_on_miss_then_hits()
     {
         await fixture.ResetCommentAsync();
@@ -158,6 +189,7 @@ public sealed class RedisCacheTests(RedisFixture fixture)
 
         var metrics = await cache.GetMetricsAsync();
         Assert.Equal(30L, metrics.Entries);
+        Assert.Equal(1L, metrics.Evictions);
     }
 
     [Fact]
@@ -175,5 +207,8 @@ public sealed class RedisCacheTests(RedisFixture fixture)
         await cache.RemoveAsync(7);
 
         Assert.Null(await cache.GetAsync(7));
+
+        var metrics = await cache.GetMetricsAsync();
+        Assert.Equal(1L, metrics.Invalidations);
     }
 }

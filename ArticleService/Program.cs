@@ -60,6 +60,7 @@ try
         });
 
     builder.Services.AddSingleton<IArticleCache, RedisArticleCache>();
+    builder.Services.AddSingleton<HttpRequestMetrics>();
     builder.Services.AddHostedService<ArticleCacheRefreshWorker>();
 
     var app = builder.Build();
@@ -76,6 +77,7 @@ try
         app.UseSwaggerUI();
     }
 
+    app.UseHappyHeadlinesRequestMetrics();
     app.UseAuthorization();
 
     app.MapControllers();
@@ -84,29 +86,35 @@ try
         "/metrics/cache",
         async Task<IResult> (
             IArticleCache cache,
+            HttpRequestMetrics requestMetrics,
             ILoggerFactory loggerFactory) =>
         {
+            CacheMetricsSnapshot? snapshot = null;
+
             try
             {
-                var snapshot = await cache.GetMetricsAsync();
-
-                return Results.Text(
-                    PrometheusCacheMetricsFormatter.Format(
-                        "article",
-                        snapshot),
-                    "text/plain; version=0.0.4; charset=utf-8");
+                snapshot = await cache
+                    .GetMetricsAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(1));
             }
-            catch (RedisException ex)
+            catch (Exception ex)
+                when (ex is RedisException or TimeoutException)
             {
                 loggerFactory
                     .CreateLogger("ArticleCacheMetrics")
                     .LogWarning(
                         ex,
-                        "ArticleCache metrics are unavailable.");
+                        "ArticleCache metrics are unavailable or timed out.");
 
-                return Results.StatusCode(
-                    StatusCodes.Status503ServiceUnavailable);
             }
+
+            return Results.Text(
+                PrometheusCacheMetricsFormatter.Format(
+                    "article",
+                    "ArticleService",
+                    snapshot,
+                    requestMetrics.GetSnapshot()),
+                "text/plain; version=0.0.4; charset=utf-8");
         });
 
     await app.RunAsync();
