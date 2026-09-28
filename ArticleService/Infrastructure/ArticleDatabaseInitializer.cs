@@ -37,7 +37,7 @@ public class ArticleDatabaseInitializer
             {
                 await using var db = _factory.Create(continent);
                 await db.Database.EnsureCreatedAsync(cancellationToken);
-                await EnsureQueueMessageSchemaAsync(db, cancellationToken);
+                await EnsureArticleSchemaAsync(db, cancellationToken);
                 _logger.LogInformation("Database ready for {Continent}.", continent);
                 return;
             }
@@ -70,7 +70,7 @@ public class ArticleDatabaseInitializer
         }
     }
 
-    private static Task EnsureQueueMessageSchemaAsync(
+    private static Task EnsureArticleSchemaAsync(
         ArticleDbContext db,
         CancellationToken cancellationToken)
     {
@@ -79,6 +79,14 @@ public class ArticleDatabaseInitializer
             IF COL_LENGTH(N'[Articles]', N'SourceMessageId') IS NULL
             BEGIN
                 ALTER TABLE [Articles] ADD [SourceMessageId] uniqueidentifier NULL;
+            END;
+
+            IF COL_LENGTH(N'[Articles]', N'PublishedAtUtc') IS NULL
+            BEGIN
+                ALTER TABLE [Articles]
+                    ADD [PublishedAtUtc] datetimeoffset NOT NULL
+                    CONSTRAINT [DF_Articles_PublishedAtUtc]
+                    DEFAULT (SYSUTCDATETIME()) WITH VALUES;
             END;
 
             IF NOT EXISTS (
