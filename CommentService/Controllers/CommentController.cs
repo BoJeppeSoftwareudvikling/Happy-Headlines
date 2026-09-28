@@ -1,8 +1,10 @@
+using CommentService.Caching;
 using CommentService.Clients;
 using CommentService.Data;
 using CommentService.Dtos;
 using CommentService.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace CommentService.Controllers;
 
@@ -11,32 +13,62 @@ namespace CommentService.Controllers;
 public class CommentController(
     CommentDbContextFactory factory,
     ProfanityClient profanityClient,
+    ICommentCache cache,
     ILogger<CommentController> logger) : ControllerBase
 {
     [HttpGet]
-    public ActionResult<IEnumerable<Comment>> GetAll()
+    public async Task<ActionResult<IEnumerable<Comment>>> GetAll(
+        CancellationToken cancellationToken)
     {
-        using var db = factory.Create();
-        return Ok(db.Comments.ToList());
+        await using var db = factory.Create();
+
+        return Ok(await db.Comments
+            .AsNoTracking()
+            .ToListAsync(cancellationToken));
     }
 
     [HttpGet("article/{articleId:int}")]
-    public ActionResult<IEnumerable<Comment>> GetByArticle(int articleId)
+    public async Task<ActionResult<IEnumerable<Comment>>> GetByArticle(
+        int articleId,
+        CancellationToken cancellationToken)
     {
-        using var db = factory.Create();
-        var comments = db.Comments
+        if (articleId <= 0)
+        {
+            return BadRequest(
+                "articleId must be greater than 0.");
+        }
+
+        var cachedComments = await cache.GetAsync(articleId);
+
+        if (cachedComments is not null)
+        {
+            return Ok(cachedComments);
+        }
+
+        await using var db = factory.Create();
+
+        var comments = await db.Comments
+            .AsNoTracking()
             .Where(comment => comment.ArticleId == articleId)
             .OrderBy(comment => comment.CreatedAtUtc)
-            .ToList();
+            .ToListAsync(cancellationToken);
+
+        await cache.SetAsync(articleId, comments);
 
         return Ok(comments);
     }
 
     [HttpGet("{id:int}")]
-    public ActionResult<Comment> GetById(int id)
+    public async Task<ActionResult<Comment>> GetById(
+        int id,
+        CancellationToken cancellationToken)
     {
-        using var db = factory.Create();
-        var comment = db.Comments.Find(id);
+        await using var db = factory.Create();
+
+        var comment = await db.Comments.FindAsync(
+            [id],
+            cancellationToken);
+
         return comment is null ? NotFound() : Ok(comment);
     }
 
@@ -47,7 +79,8 @@ public class CommentController(
     {
         if (request.ArticleId <= 0)
         {
-            return BadRequest("articleId must be greater than 0.");
+            return BadRequest(
+                "articleId must be greater than 0.");
         }
 
         if (string.IsNullOrWhiteSpace(request.AuthorName))
@@ -65,7 +98,11 @@ public class CommentController(
 
         try
         {
-            var moderation = await profanityClient.CheckProfanityAsync(content, cancellationToken);
+            var moderation =
+                await profanityClient.CheckProfanityAsync(
+                    content,
+                    cancellationToken);
+
             content = moderation.FilteredText;
         }
         catch (ProfanityServiceUnavailableException ex)
@@ -74,6 +111,7 @@ public class CommentController(
             logger.LogWarning(
                 ex,
                 "Profanity filtering marked down. Storing comment as Unmoderated.");
+
             status = ModerationStatus.Unmoderated;
         }
 
@@ -86,10 +124,15 @@ public class CommentController(
             ModerationStatus = status
         };
 
-        using var db = factory.Create();
+        await using var db = factory.Create();
         db.Comments.Add(toSave);
         await db.SaveChangesAsync(cancellationToken);
 
-        return CreatedAtAction(nameof(GetById), new { id = toSave.Id }, toSave);
+        await cache.RemoveAsync(toSave.ArticleId);
+
+        return CreatedAtAction(
+            nameof(GetById),
+            new { id = toSave.Id },
+            toSave);
     }
 }
