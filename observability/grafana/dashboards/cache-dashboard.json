@@ -244,7 +244,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "description": "A cache hit means the requested articles were already in Redis, so ArticleService did not need the database. This is the percentage of hits during the last five minutes.",
+      "description": "A cache hit means the requested articles were already in Redis, so ArticleService did not need the database. This is the percentage of hits during the selected dashboard time range.",
       "fieldConfig": {
         "defaults": {
           "decimals": 1,
@@ -285,7 +285,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(increase(happy_headlines_cache_hits_total{cache=\"article\"}[5m])) / (sum(increase(happy_headlines_cache_hits_total{cache=\"article\"}[5m])) + sum(increase(happy_headlines_cache_misses_total{cache=\"article\"}[5m])))",
+          "expr": "sum(increase(happy_headlines_cache_hits_total{cache=\"article\"}[$__range])) / (sum(increase(happy_headlines_cache_hits_total{cache=\"article\"}[$__range])) + sum(increase(happy_headlines_cache_misses_total{cache=\"article\"}[$__range])))",
           "instant": true,
           "legendFormat": "ArticleCache",
           "refId": "A"
@@ -296,7 +296,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "description": "A cache hit means the requested comments were already in Redis, so CommentService did not need the database. This is the percentage of hits during the last five minutes.",
+      "description": "A cache hit means the requested comments were already in Redis, so CommentService did not need the database. This is the percentage of hits during the selected dashboard time range.",
       "fieldConfig": {
         "defaults": {
           "decimals": 1,
@@ -337,7 +337,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(increase(happy_headlines_cache_hits_total{cache=\"comment\"}[5m])) / (sum(increase(happy_headlines_cache_hits_total{cache=\"comment\"}[5m])) + sum(increase(happy_headlines_cache_misses_total{cache=\"comment\"}[5m])))",
+          "expr": "sum(increase(happy_headlines_cache_hits_total{cache=\"comment\"}[$__range])) / (sum(increase(happy_headlines_cache_hits_total{cache=\"comment\"}[$__range])) + sum(increase(happy_headlines_cache_misses_total{cache=\"comment\"}[$__range])))",
           "instant": true,
           "legendFormat": "CommentCache",
           "refId": "A"
