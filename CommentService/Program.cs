@@ -5,6 +5,8 @@ using CommentService.Options;
 using Microsoft.Extensions.Options;
 using Monitoring;
 using Polly;
+using CommentService.Caching;
+using Prometheus;
 
 _ = MonitorService.TracerProvider;
 
@@ -19,7 +21,7 @@ try
     builder.Services.AddSingleton<CommentDatabaseInitializer>();
     builder.Services.Configure<DatabaseInitializationOptions>(
         builder.Configuration.GetSection(DatabaseInitializationOptions.SectionName));
-
+    builder.Services.AddCommentCacheInfrastructure(builder.Configuration);
     builder.Services.Configure<ProfanityServiceOptions>(
         builder.Configuration.GetSection(ProfanityServiceOptions.SectionName));
     builder.Services.AddSingleton<IAsyncPolicy<HttpResponseMessage>>(serviceProvider =>
@@ -60,15 +62,24 @@ try
     var initializer = app.Services.GetRequiredService<CommentDatabaseInitializer>();
     await initializer.InitializeAsync(app.Lifetime.ApplicationStopping);
 
+    _ = app.Services.GetRequiredService<StackExchange.Redis.IConnectionMultiplexer>();
+
     if (app.Environment.IsDevelopment())
     {
         app.UseSwagger();
         app.UseSwaggerUI();
     }
 
+    app.UseRouting();
+    app.UseHttpMetrics(options =>
+    {
+        options.ReduceStatusCodeCardinality();
+        options.CaptureMetricsUrl = false;
+    });
     app.UseAuthorization();
 
     app.MapControllers();
+    app.MapMetrics();
 
     await app.RunAsync();
 }

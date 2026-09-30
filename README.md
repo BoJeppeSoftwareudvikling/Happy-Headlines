@@ -16,8 +16,12 @@ ProfanityService/   ASP.NET Core Web API (profanity word list)
 PublisherService/   ASP.NET Core Web API (moderates and publishes articles)
 NewsletterService/  ASP.NET Core Web API + article queue consumer
 Messaging/          Shared RabbitMQ topology, contracts, and trace propagation
+ArticleCache.Contracts/ Shared article snapshot contract and Redis key names
+ArticleCacheWorker/  Offline worker that refreshes the 14-day global article cache
+Monitoring/          Shared logging, tracing, and cache metric definitions
+monitoring/          Prometheus and Grafana provisioning
 docs/               Architecture notes and C4 diagrams
-docker-compose.yml  APIs, SQL Server instances, RabbitMQ, Seq, and Zipkin
+docker-compose.yml  APIs, caches, databases, queues, and monitoring services
 .env.example        Template for SQL and RabbitMQ credentials (copy to .env)
 ```
 
@@ -30,6 +34,7 @@ Secrets are not committed. Copy:
 - `ProfanityService/appsettings.example.json` → `appsettings.json`
 - `PublisherService/appsettings.example.json` → `appsettings.json`
 - `NewsletterService/appsettings.example.json` → `appsettings.json`
+- `ArticleCacheWorker/appsettings.example.json` → `appsettings.Development.json` for `dotnet run`
 
 Use the same SQL password in `.env` (`MSSQL_SA_PASSWORD`) and in the appsettings connection strings.
 Use the same RabbitMQ credentials in `.env` and each service's `RabbitMq` appsettings section when running with `dotnet run`.
@@ -57,7 +62,7 @@ If the node is already in a swarm, skip `swarm init`. If `swarm init` cannot pic
 docker swarm init --advertise-addr 127.0.0.1
 ```
 
-Default replicas in `docker-compose.yml`: DraftService **2**, ArticleService **3**, CommentService **2**, ProfanityService **2**, PublisherService **2**, and one replica for NewsletterService and each infrastructure container.
+Default replicas in `docker-compose.yml`: DraftService **2**, ArticleService **3**, CommentService **2**, ProfanityService **2**, PublisherService **2**, and one replica for NewsletterService, ArticleCacheWorker, and each infrastructure container.
 
 Each database-backed API can reach only its own database network (`draft-db`, `article-db`, `comment-db`, `profanity-db`). CommentService, PublisherService, and ProfanityService share `moderation-link`; PublisherService, ArticleService, NewsletterService, and RabbitMQ share `article-queue`.
 
@@ -83,10 +88,58 @@ Use **`http://127.0.0.1`**, not `localhost`. Swarm’s published port is IPv4; `
 - Publisher: http://127.0.0.1:5052/swagger
 - Newsletter: http://127.0.0.1:5053/swagger
 - RabbitMQ management: http://127.0.0.1:15672
+- Prometheus: http://127.0.0.1:9090
+- Grafana: http://127.0.0.1:3000 (`Happy Headlines cache`)
+- Seq: http://127.0.0.1:5342
+- Zipkin: http://127.0.0.1:9411
+- Article metrics: http://127.0.0.1:8080/metrics
+- Comment metrics: http://127.0.0.1:5049/metrics
 - Which Article replica answered: http://127.0.0.1:8080/Article/instance
 - Which Draft replica answered: http://127.0.0.1:5051/Draft/instance
 
 Host SQL ports (DBeaver: SQL Server, `sa`, trust server certificate): drafts **1438**, articles **1437**, comments **1435**, profanity **1436**. A native SQL Server can keep **1433** (and often **1434** for DAC).
+
+`article-cache` uses local port **6380** and `comment-cache` uses **6381**. Redis is the technology in both containers. The data is disposable and has no persistent volume. SQL Server remains the source of truth.
+
+Grafana uses `GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASSWORD` from `.env`. If they are omitted, the deployment uses the documented local-only defaults `admin` and `happy-headlines-local`.
+
+Prometheus runs as root so it can inspect Swarm tasks through the read-only Docker socket mount. Access to the Docker socket is privileged. A production deployment should use a restricted socket proxy or another service-discovery mechanism.
+
+### Cache behavior
+
+`ArticleCacheWorker` refreshes a versioned snapshot of global articles published within the latest 14 days. The refresh interval is 300 seconds and the snapshot TTL is 900 seconds, so `ArticleCache` can lag `ArticleDatabase` by one interval and never keeps a snapshot past the TTL. For a faster demonstration, set `ArticleCacheRefresh__IntervalSeconds` on the worker service.
+
+ArticleService checks `ArticleCache` for global `GET /Article/{id}` requests and provides:
+
+```text
+GET /Article/recent?continent=Global&limit=10
+```
+
+Regional reads bypass `ArticleCache`. A miss or a Redis error falls back to SQL Server.
+
+CommentService checks `CommentCache` before `CommentDatabase` for:
+
+```text
+GET /Comment/article/{articleId}
+```
+
+One cache entry holds the complete ordered comment list for one article, including an empty list. Redis Lua scripts keep one shared LRU of at most 30 article entries across both CommentService replicas. Each entry expires after 900 seconds. Posting a comment writes to SQL Server and then invalidates that article's entry. A concurrent GET can put an older list back. The TTL limits that window. A version check or a distributed lock would close it.
+
+Inspect the worker:
+
+```bash
+docker service logs happyHeadlines_article-cache-worker --tail 100
+```
+
+Demonstrate fail-open behavior:
+
+```bash
+docker service scale happyHeadlines_article-cache=0
+docker service scale happyHeadlines_article-cache=1
+
+docker service scale happyHeadlines_comment-cache=0
+docker service scale happyHeadlines_comment-cache=1
+```
 
 ### Chaos: stop ProfanityService
 

@@ -10,8 +10,15 @@ public class ArticleDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Article>()
-            .HasIndex(article => article.SourceMessageId)
+        var article = modelBuilder.Entity<Article>();
+        
+        article.Property(item => item.PublishedAtUtc)
+        .HasColumnType("datetimeoffset");
+
+        article.HasIndex(item => item.PublishedAtUtc)
+            .HasDatabaseName("IX_Articles_PublishedAtUtc");
+
+        article.HasIndex(item => item.SourceMessageId)
             .IsUnique()
             .HasFilter("[SourceMessageId] IS NOT NULL");
     }

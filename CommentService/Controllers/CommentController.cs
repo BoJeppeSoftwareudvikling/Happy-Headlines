@@ -1,8 +1,11 @@
+using CommentService.Caching;
 using CommentService.Clients;
 using CommentService.Data;
 using CommentService.Dtos;
 using CommentService.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Monitoring;
 
 namespace CommentService.Controllers;
 
@@ -10,6 +13,7 @@ namespace CommentService.Controllers;
 [Route("[controller]")]
 public class CommentController(
     CommentDbContextFactory factory,
+    ICommentCache cache,
     ProfanityClient profanityClient,
     ILogger<CommentController> logger) : ControllerBase
 {
@@ -21,13 +25,33 @@ public class CommentController(
     }
 
     [HttpGet("article/{articleId:int}")]
-    public ActionResult<IEnumerable<Comment>> GetByArticle(int articleId)
+    public async Task<ActionResult<IEnumerable<Comment>>> GetByArticle(
+        int articleId,
+        CancellationToken cancellationToken)
     {
-        using var db = factory.Create();
-        var comments = db.Comments
+        var cacheResult = await cache.GetAsync(articleId, cancellationToken);
+        if (cacheResult is
+            { Outcome: CommentCacheReadOutcome.Hit, Value: not null })
+        {
+            return Ok(cacheResult.Value);
+        }
+
+        await using var db = factory.Create();
+        var comments = await db.Comments
             .Where(comment => comment.ArticleId == articleId)
             .OrderBy(comment => comment.CreatedAtUtc)
-            .ToList();
+            .ToListAsync(cancellationToken);
+
+        CacheMetrics.RecordFallback(
+            "comment",
+            cacheResult.Outcome == CommentCacheReadOutcome.Miss
+                ? "miss"
+                : "error");
+
+        if (cacheResult.Outcome == CommentCacheReadOutcome.Miss)
+        {
+            await cache.StoreAsync(articleId, comments, cancellationToken);
+        }
 
         return Ok(comments);
     }
@@ -86,9 +110,10 @@ public class CommentController(
             ModerationStatus = status
         };
 
-        using var db = factory.Create();
+        await using var db = factory.Create();
         db.Comments.Add(toSave);
         await db.SaveChangesAsync(cancellationToken);
+        await cache.InvalidateAsync(toSave.ArticleId, cancellationToken);
 
         return CreatedAtAction(nameof(GetById), new { id = toSave.Id }, toSave);
     }
