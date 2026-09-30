@@ -5,6 +5,7 @@ using CommentService.Dtos;
 using CommentService.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Monitoring;
 
 namespace CommentService.Controllers;
 
@@ -47,11 +48,16 @@ public class CommentController(
 
         await using var db = factory.Create();
 
-        var comments = await db.Comments
-            .AsNoTracking()
-            .Where(comment => comment.ArticleId == articleId)
-            .OrderBy(comment => comment.CreatedAtUtc)
-            .ToListAsync(cancellationToken);
+        var comments = await DependencyActivity.TraceAsync(
+            "comment-database read",
+            "CommentDatabase",
+            "mssql",
+            "SELECT",
+            () => db.Comments
+                .AsNoTracking()
+                .Where(comment => comment.ArticleId == articleId)
+                .OrderBy(comment => comment.CreatedAtUtc)
+                .ToListAsync(cancellationToken));
 
         await cache.SetAsync(articleId, comments);
 
@@ -126,7 +132,15 @@ public class CommentController(
 
         await using var db = factory.Create();
         db.Comments.Add(toSave);
-        await db.SaveChangesAsync(cancellationToken);
+        await DependencyActivity.TraceAsync(
+            "comment-database write",
+            "CommentDatabase",
+            "mssql",
+            "INSERT",
+            async () =>
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            });
 
         await cache.RemoveAsync(toSave.ArticleId);
 

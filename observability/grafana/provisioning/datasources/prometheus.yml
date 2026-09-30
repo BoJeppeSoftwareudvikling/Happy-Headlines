@@ -14,3 +14,10 @@ datasources:
       prometheusType: Prometheus
       prometheusVersion: 3.15.0
       timeInterval: 5s
+
+  - name: Zipkin
+    uid: zipkin
+    type: zipkin
+    access: proxy
+    url: http://zipkin:9411
+    editable: false

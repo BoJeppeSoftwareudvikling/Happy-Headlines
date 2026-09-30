@@ -104,6 +104,19 @@ groups:
           summary: "ArticleCache refresh is stale"
           description: "No successful ArticleCache refresh has been recorded for more than 90 seconds. The configured demo refresh interval is 30 seconds."
 
+      - alert: CacheInvalidationFailed
+        expr: |
+          sum by (cache) (
+            increase(happy_headlines_cache_invalidation_failures_total[5m])
+          ) > 0
+        labels:
+          severity: warning
+          service: happy-headlines-cache
+          category: cache-consistency
+        annotations:
+          summary: "{{ $labels.cache }} cache invalidation failed"
+          description: "At least one cache invalidation failed during the last five minutes. The database write may have succeeded while stale cached data remains available."
+
       - alert: CommentCacheCapacityInvariantBroken
         expr: happy_headlines_cache_entries{cache="comment"} > 30
         for: 30s

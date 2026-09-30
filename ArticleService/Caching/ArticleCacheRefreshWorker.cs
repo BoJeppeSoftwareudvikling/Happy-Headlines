@@ -4,6 +4,7 @@ using ArticleService.Models;
 using ArticleService.Options;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Monitoring;
 
 namespace ArticleService.Caching;
 
@@ -34,6 +35,8 @@ public sealed class ArticleCacheRefreshWorker(
         CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
+        using var activity = MonitorService.ActivitySource.StartActivity(
+            "article-cache refresh");
 
         try
         {
@@ -50,11 +53,16 @@ public sealed class ArticleCacheRefreshWorker(
 
             await using var db = factory.Create(Continent.Global);
 
-            var articles = await db.Articles
-                .AsNoTracking()
-                .Where(article => article.PublishedAtUtc >= cutoff)
-                .OrderByDescending(article => article.PublishedAtUtc)
-                .ToListAsync(cancellationToken);
+            var articles = await DependencyActivity.TraceAsync(
+                "article-database refresh-read",
+                "ArticleDatabase",
+                "mssql",
+                "SELECT",
+                () => db.Articles
+                    .AsNoTracking()
+                    .Where(article => article.PublishedAtUtc >= cutoff)
+                    .OrderByDescending(article => article.PublishedAtUtc)
+                    .ToListAsync(cancellationToken));
 
             await cache.ReplaceAsync(articles);
 
@@ -75,6 +83,7 @@ public sealed class ArticleCacheRefreshWorker(
         }
         catch (Exception ex)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             await cache.RecordRefreshFailureAsync();
 
             logger.LogError(

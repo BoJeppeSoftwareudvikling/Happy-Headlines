@@ -108,6 +108,7 @@ try
         });
 
     builder.Services.AddSingleton<ICommentCache, RedisCommentCache>();
+    builder.Services.AddSingleton<CacheOperationMetrics>();
     builder.Services.AddSingleton<HttpRequestMetrics>();
 
     var app = builder.Build();
@@ -133,6 +134,7 @@ try
         "/metrics/cache",
         async Task<IResult> (
             ICommentCache cache,
+            CacheOperationMetrics operationMetrics,
             HttpRequestMetrics requestMetrics,
             ILoggerFactory loggerFactory) =>
         {
@@ -160,6 +162,7 @@ try
                     "comment",
                     "CommentService",
                     snapshot,
+                    operationMetrics.GetSnapshot(),
                     requestMetrics.GetSnapshot()),
                 "text/plain; version=0.0.4; charset=utf-8");
         });

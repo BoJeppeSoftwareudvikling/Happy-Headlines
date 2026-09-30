@@ -5,6 +5,7 @@ using ArticleService.Options;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Monitoring;
 
 namespace ArticleService.Controllers;
 
@@ -34,20 +35,32 @@ public class ArticleController(
 
             await using var globalDb = factory.Create(Continent.Global);
 
-            var recentArticles = await globalDb.Articles
-                .AsNoTracking()
-                .Where(article => article.PublishedAtUtc >= cutoff)
-                .OrderByDescending(article => article.PublishedAtUtc)
-                .ToListAsync(cancellationToken);
+            var recentArticles = await DependencyActivity.TraceAsync(
+                "article-database read-recent",
+                "ArticleDatabase",
+                "mssql",
+                "SELECT",
+                () => globalDb.Articles
+                    .AsNoTracking()
+                    .Where(article => article.PublishedAtUtc >= cutoff)
+                    .OrderByDescending(article => article.PublishedAtUtc)
+                    .ToListAsync(cancellationToken));
 
             return Ok(recentArticles);
         }
 
         await using var db = factory.Create(continent);
 
-        return Ok(await db.Articles
-            .AsNoTracking()
-            .ToListAsync(cancellationToken));
+        var articles = await DependencyActivity.TraceAsync(
+            "article-database read-all",
+            "ArticleDatabase",
+            "mssql",
+            "SELECT",
+            () => db.Articles
+                .AsNoTracking()
+                .ToListAsync(cancellationToken));
+
+        return Ok(articles);
     }
 
     [HttpGet("instance")]
@@ -72,9 +85,14 @@ public class ArticleController(
 
         await using var db = factory.Create(continent);
 
-        var article = await db.Articles.FindAsync(
-            [id],
-            cancellationToken);
+        var article = await DependencyActivity.TraceAsync(
+            "article-database read",
+            "ArticleDatabase",
+            "mssql",
+            "SELECT",
+            async () => await db.Articles.FindAsync(
+                [id],
+                cancellationToken));
 
         return article is null ? NotFound() : Ok(article);
     }
@@ -94,7 +112,15 @@ public class ArticleController(
 
         await using var db = factory.Create(toSave.Continent);
         db.Articles.Add(toSave);
-        await db.SaveChangesAsync(cancellationToken);
+        await DependencyActivity.TraceAsync(
+            "article-database write",
+            "ArticleDatabase",
+            "mssql",
+            "INSERT",
+            async () =>
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            });
 
         return CreatedAtAction(
             nameof(GetById),
@@ -110,9 +136,14 @@ public class ArticleController(
         CancellationToken cancellationToken)
     {
         await using var db = factory.Create(continent);
-        var article = await db.Articles.FindAsync(
-            [id],
-            cancellationToken);
+        var article = await DependencyActivity.TraceAsync(
+            "article-database read",
+            "ArticleDatabase",
+            "mssql",
+            "SELECT",
+            async () => await db.Articles.FindAsync(
+                [id],
+                cancellationToken));
 
         if (article is null)
         {
@@ -121,7 +152,15 @@ public class ArticleController(
 
         article.Title = updated.Title;
         article.Content = updated.Content;
-        await db.SaveChangesAsync(cancellationToken);
+        await DependencyActivity.TraceAsync(
+            "article-database write",
+            "ArticleDatabase",
+            "mssql",
+            "UPDATE",
+            async () =>
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            });
 
         if (continent == Continent.Global)
         {
@@ -138,9 +177,14 @@ public class ArticleController(
         CancellationToken cancellationToken)
     {
         await using var db = factory.Create(continent);
-        var article = await db.Articles.FindAsync(
-            [id],
-            cancellationToken);
+        var article = await DependencyActivity.TraceAsync(
+            "article-database read",
+            "ArticleDatabase",
+            "mssql",
+            "SELECT",
+            async () => await db.Articles.FindAsync(
+                [id],
+                cancellationToken));
 
         if (article is null)
         {
@@ -148,7 +192,15 @@ public class ArticleController(
         }
 
         db.Articles.Remove(article);
-        await db.SaveChangesAsync(cancellationToken);
+        await DependencyActivity.TraceAsync(
+            "article-database write",
+            "ArticleDatabase",
+            "mssql",
+            "DELETE",
+            async () =>
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            });
 
         if (continent == Continent.Global)
         {

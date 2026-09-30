@@ -39,6 +39,7 @@ public sealed class HttpRequestMetricsTests
             "article",
             "ArticleService",
             new CacheMetricsSnapshot(3, 1, 2),
+            new CacheOperationMetrics().GetSnapshot(),
             requestMetrics.GetSnapshot());
 
         Assert.Contains(
@@ -55,10 +56,14 @@ public sealed class HttpRequestMetricsTests
     [Fact]
     public void Formatter_keeps_service_metrics_when_cache_is_unavailable()
     {
+        var operationMetrics = new CacheOperationMetrics();
+        operationMetrics.RecordInvalidationFailure();
+
         var output = PrometheusCacheMetricsFormatter.Format(
             "comment",
             "CommentService",
             cacheSnapshot: null,
+            operationMetrics.GetSnapshot(),
             new HttpRequestMetrics().GetSnapshot());
 
         Assert.Contains(
@@ -66,6 +71,9 @@ public sealed class HttpRequestMetricsTests
             output);
         Assert.DoesNotContain(
             "happy_headlines_cache_hits_total{cache=\"comment\"}",
+            output);
+        Assert.Contains(
+            "happy_headlines_cache_invalidation_failures_total{cache=\"comment\"} 1",
             output);
     }
 }

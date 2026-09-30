@@ -8,6 +8,7 @@ namespace ArticleService.Caching;
 
 public sealed class RedisArticleCache(
     IConnectionMultiplexer redis,
+    CacheOperationMetrics operationMetrics,
     ILogger<RedisArticleCache> logger) : IArticleCache
 {
     private const string EntriesKey =
@@ -63,10 +64,15 @@ public sealed class RedisArticleCache(
     {
         try
         {
-            var result = await Database.ScriptEvaluateAsync(
-                GetScript,
-                [EntriesKey, HitsKey, MissesKey],
-                [articleId]);
+            var result = await DependencyActivity.TraceAsync(
+                "article-cache get",
+                "ArticleCache",
+                "redis",
+                "GET",
+                () => Database.ScriptEvaluateAsync(
+                    GetScript,
+                    [EntriesKey, HitsKey, MissesKey],
+                    [articleId]));
 
             if (result.IsNull)
             {
@@ -98,7 +104,12 @@ public sealed class RedisArticleCache(
     {
         try
         {
-            var entries = await Database.HashGetAllAsync(EntriesKey);
+            var entries = await DependencyActivity.TraceAsync(
+                "article-cache get-all",
+                "ArticleCache",
+                "redis",
+                "HGETALL",
+                () => Database.HashGetAllAsync(EntriesKey));
 
             if (entries.Length == 0)
             {
@@ -152,11 +163,19 @@ public sealed class RedisArticleCache(
 
         try
         {
-            await database.HashSetAsync(stagingKey, [.. entries]);
+            await DependencyActivity.TraceAsync(
+                "article-cache replace",
+                "ArticleCache",
+                "redis",
+                "REPLACE",
+                async () =>
+                {
+                    await database.HashSetAsync(stagingKey, [.. entries]);
 
-            await database.ScriptEvaluateAsync(
-                PublishStagingScript,
-                [stagingKey, EntriesKey]);
+                    await database.ScriptEvaluateAsync(
+                        PublishStagingScript,
+                        [stagingKey, EntriesKey]);
+                });
         }
         catch
         {
@@ -177,10 +196,16 @@ public sealed class RedisArticleCache(
     {
         try
         {
-            await Database.HashDeleteAsync(EntriesKey, articleId);
+            await DependencyActivity.TraceAsync(
+                "article-cache invalidate",
+                "ArticleCache",
+                "redis",
+                "HDEL",
+                () => Database.HashDeleteAsync(EntriesKey, articleId));
         }
         catch (RedisException ex)
         {
+            operationMetrics.RecordInvalidationFailure();
             logger.LogWarning(
                 ex,
                 "Could not invalidate article {ArticleId} in ArticleCache.",

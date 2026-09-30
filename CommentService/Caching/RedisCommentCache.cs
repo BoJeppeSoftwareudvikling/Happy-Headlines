@@ -8,6 +8,7 @@ namespace CommentService.Caching;
 
 public sealed class RedisCommentCache(
     IConnectionMultiplexer redis,
+    CacheOperationMetrics operationMetrics,
     ILogger<RedisCommentCache> logger) : ICommentCache
 {
     private const int Capacity = 30;
@@ -98,15 +99,20 @@ public sealed class RedisCommentCache(
 
         try
         {
-            var result = await Database.ScriptEvaluateAsync(
-                GetScript,
-                [
-                    entryKey,
-                    LruKey,
-                    SequenceKey,
-                    HitsKey,
-                    MissesKey
-                ]);
+            var result = await DependencyActivity.TraceAsync(
+                "comment-cache get",
+                "CommentCache",
+                "redis",
+                "GET",
+                () => Database.ScriptEvaluateAsync(
+                    GetScript,
+                    [
+                        entryKey,
+                        LruKey,
+                        SequenceKey,
+                        HitsKey,
+                        MissesKey
+                    ]));
 
             if (result.IsNull)
             {
@@ -146,10 +152,15 @@ public sealed class RedisCommentCache(
                 comments,
                 JsonOptions);
 
-            await Database.ScriptEvaluateAsync(
-                SetAndTrimScript,
-                [entryKey, LruKey, SequenceKey, EvictionsKey],
-                [serialized, Capacity]);
+            await DependencyActivity.TraceAsync(
+                "comment-cache set",
+                "CommentCache",
+                "redis",
+                "SET",
+                () => Database.ScriptEvaluateAsync(
+                    SetAndTrimScript,
+                    [entryKey, LruKey, SequenceKey, EvictionsKey],
+                    [serialized, Capacity]));
         }
         catch (RedisException ex)
         {
@@ -166,12 +177,18 @@ public sealed class RedisCommentCache(
 
         try
         {
-            await Database.ScriptEvaluateAsync(
-                RemoveScript,
-                [entryKey, LruKey, InvalidationsKey]);
+            await DependencyActivity.TraceAsync(
+                "comment-cache invalidate",
+                "CommentCache",
+                "redis",
+                "DEL",
+                () => Database.ScriptEvaluateAsync(
+                    RemoveScript,
+                    [entryKey, LruKey, InvalidationsKey]));
         }
         catch (RedisException ex)
         {
+            operationMetrics.RecordInvalidationFailure();
             logger.LogWarning(
                 ex,
                 "Could not invalidate CommentCache for article {ArticleId}.",

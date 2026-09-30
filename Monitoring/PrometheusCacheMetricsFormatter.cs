@@ -9,6 +9,7 @@ public static class PrometheusCacheMetricsFormatter
         string cacheName,
         string serviceName,
         CacheMetricsSnapshot? cacheSnapshot,
+        CacheOperationMetricsSnapshot operationSnapshot,
         HttpRequestMetricsSnapshot requestSnapshot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(cacheName);
@@ -56,6 +57,12 @@ public static class PrometheusCacheMetricsFormatter
             "# TYPE happy_headlines_cache_dependency_up gauge");
         output.AppendLine(FormattableString.Invariant(
             $"happy_headlines_cache_dependency_up{{cache=\"{cacheName}\"}} {(cacheSnapshot is null ? 0 : 1)}"));
+        output.AppendLine(
+            "# HELP happy_headlines_cache_invalidation_failures_total Cache invalidation attempts that failed before the cached entry could be removed.");
+        output.AppendLine(
+            "# TYPE happy_headlines_cache_invalidation_failures_total counter");
+        output.AppendLine(FormattableString.Invariant(
+            $"happy_headlines_cache_invalidation_failures_total{{cache=\"{cacheName}\"}} {operationSnapshot.InvalidationFailures}"));
 
         if (cacheSnapshot is null)
         {

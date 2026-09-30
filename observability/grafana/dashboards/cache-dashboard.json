@@ -4,7 +4,30 @@
   "editable": true,
   "graphTooltip": 1,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": true,
+      "title": "Seq logs",
+      "type": "link",
+      "url": "http://localhost:5342"
+    },
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": true,
+      "title": "Zipkin traces",
+      "type": "link",
+      "url": "http://localhost:9411/zipkin/"
+    }
+  ],
   "panels": [
     {
       "collapsed": false,
@@ -801,6 +824,52 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Cache invalidation attempts that failed during the selected time range. A failure can leave stale data in Redis after a successful database write.",
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "mappings": [
+            {
+              "options": {
+                "0": { "color": "green", "text": "NONE" }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green" },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 3, "w": 12, "x": 0, "y": 44 },
+      "id": 20,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (cache) (increase(happy_headlines_cache_invalidation_failures_total[$__range]))",
+          "instant": true,
+          "legendFormat": "{{cache}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Invalidation failures",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "description": "Number of active alerts for cache behavior, Redis availability and Prometheus collection. Zero means no technical alert is active.",
       "fieldConfig": {
         "defaults": {
@@ -823,7 +892,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 3, "w": 24, "x": 0, "y": 44 },
+      "gridPos": { "h": 3, "w": 12, "x": 12, "y": 44 },
       "id": 17,
       "options": {
         "colorMode": "value",

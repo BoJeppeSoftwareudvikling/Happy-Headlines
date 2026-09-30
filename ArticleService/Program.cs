@@ -60,6 +60,7 @@ try
         });
 
     builder.Services.AddSingleton<IArticleCache, RedisArticleCache>();
+    builder.Services.AddSingleton<CacheOperationMetrics>();
     builder.Services.AddSingleton<HttpRequestMetrics>();
     builder.Services.AddHostedService<ArticleCacheRefreshWorker>();
 
@@ -86,6 +87,7 @@ try
         "/metrics/cache",
         async Task<IResult> (
             IArticleCache cache,
+            CacheOperationMetrics operationMetrics,
             HttpRequestMetrics requestMetrics,
             ILoggerFactory loggerFactory) =>
         {
@@ -113,6 +115,7 @@ try
                     "article",
                     "ArticleService",
                     snapshot,
+                    operationMetrics.GetSnapshot(),
                     requestMetrics.GetSnapshot()),
                 "text/plain; version=0.0.4; charset=utf-8");
         });

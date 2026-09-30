@@ -2,6 +2,7 @@ using ArticleService.Caching;
 using ArticleService.Models;
 using CommentService.Caching;
 using Microsoft.Extensions.Logging.Abstractions;
+using Monitoring;
 using StackExchange.Redis;
 using Xunit;
 
@@ -65,6 +66,7 @@ public sealed class RedisCacheTests(RedisFixture fixture)
 
         var cache = new RedisArticleCache(
             fixture.ArticleRedis,
+            new CacheOperationMetrics(),
             NullLogger<RedisArticleCache>.Instance);
 
         var first = new Article
@@ -106,6 +108,7 @@ public sealed class RedisCacheTests(RedisFixture fixture)
 
         var cache = new RedisArticleCache(
             fixture.ArticleRedis,
+            new CacheOperationMetrics(),
             NullLogger<RedisArticleCache>.Instance);
 
         var completedAt = DateTimeOffset.FromUnixTimeSeconds(
@@ -137,6 +140,7 @@ public sealed class RedisCacheTests(RedisFixture fixture)
 
         var cache = new RedisCommentCache(
             fixture.CommentRedis,
+            new CacheOperationMetrics(),
             NullLogger<RedisCommentCache>.Instance);
 
         Assert.Null(await cache.GetAsync(42));
@@ -172,6 +176,7 @@ public sealed class RedisCacheTests(RedisFixture fixture)
 
         var cache = new RedisCommentCache(
             fixture.CommentRedis,
+            new CacheOperationMetrics(),
             NullLogger<RedisCommentCache>.Instance);
 
         for (var articleId = 1; articleId <= 30; articleId++)
@@ -199,6 +204,7 @@ public sealed class RedisCacheTests(RedisFixture fixture)
 
         var cache = new RedisCommentCache(
             fixture.CommentRedis,
+            new CacheOperationMetrics(),
             NullLogger<RedisCommentCache>.Instance);
 
         await cache.SetAsync(7, []);
