@@ -1,35 +1,40 @@
-@ArticleService_HostAddress = http://localhost:5048
+@ArticleService_HostAddress = http://127.0.0.1:8080
+@GlobalArticleId = 1
 
 GET {{ArticleService_HostAddress}}/Article?continent=Europe
 Accept: application/json
 
 ###
 
-GET {{ArticleService_HostAddress}}/Article/1?continent=Europe
+GET {{ArticleService_HostAddress}}/Article/recent?continent=Global&limit=10
 Accept: application/json
 
 ###
 
-POST {{ArticleService_HostAddress}}/Article
-Content-Type: application/json
+GET {{ArticleService_HostAddress}}/Article/{{GlobalArticleId}}?continent=Global
+Accept: application/json
 
-{
-  "title": "Local park restored",
-  "content": "Volunteers replanted the riverbank.",
-  "continent": "Europe"
-}
+### Repeat to demonstrate an ArticleCache hit
 
-###
-
-PUT {{ArticleService_HostAddress}}/Article/1?continent=Europe
-Content-Type: application/json
-
-{
-  "title": "Local park restored",
-  "content": "The riverbank is now open to the public.",
-  "continent": "Europe"
-}
+GET {{ArticleService_HostAddress}}/Article/{{GlobalArticleId}}?continent=Global
+Accept: application/json
 
 ###
 
-DELETE {{ArticleService_HostAddress}}/Article/1?continent=Europe
+PUT {{ArticleService_HostAddress}}/Article/{{GlobalArticleId}}?continent=Global
+Content-Type: application/json
+
+{
+  "title": "Updated global headline",
+  "content": "This update invalidates the active cache entry.",
+  "continent": "Global"
+}
+
+### The update makes this a cache miss with database fallback
+
+GET {{ArticleService_HostAddress}}/Article/{{GlobalArticleId}}?continent=Global
+Accept: application/json
+
+###
+
+GET {{ArticleService_HostAddress}}/metrics

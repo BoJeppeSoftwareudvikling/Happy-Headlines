@@ -50,10 +50,18 @@ services:
       RabbitMq__Port: "5672"
       RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER}
       RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS}
+      ArticleCache__ConnectionString: article-cache:6379,abortConnect=false
+      ArticleCache__DefaultRecentLimit: "10"
+      ArticleCache__MaximumRecentLimit: "100"
     deploy:
       replicas: 3
+      labels:
+        prometheus.scrape: "true"
+        prometheus.port: "8080"
+        prometheus.path: "/metrics"
     depends_on:
       - article-db-sqlserver
+      - article-cache
       - rabbitmq
       - seq
       - zipkin
@@ -61,6 +69,7 @@ services:
       - article-db
       - article-queue
       - monitoring
+      - article-cache
 
   publisher-service:
     image: publisher-service:latest
@@ -139,16 +148,25 @@ services:
       MONITORING_SERVICE_NAME: CommentService
       MONITORING_SEQ_URL: http://seq:5341/
       MONITORING_ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      CommentCache__ConnectionString: comment-cache:6379,abortConnect=false
+      CommentCache__EntryTtlSeconds: "900"
+      CommentCache__MaximumArticles: "30"
     deploy:
       replicas: 2
+      labels:
+        prometheus.scrape: "true"
+        prometheus.port: "5049"
+        prometheus.path: "/metrics"
     depends_on:
       - comment-db-sqlserver
+      - comment-cache
       - seq
       - zipkin
     networks:
       - comment-db
       - moderation-link
       - monitoring
+      - comment-cache
 
   profanity-service:
     image: profanity-service:latest
@@ -175,6 +193,94 @@ services:
       - profanity-db-sqlserver
       - seq
       - zipkin
+ 
+  article-cache-worker:
+    image: article-cache-worker:latest
+    build:
+      context: .
+      dockerfile: ArticleCacheWorker/Dockerfile
+    environment:
+      DOTNET_ENVIRONMENT: Production
+      DOTNET_EnableDiagnostics: "0"
+      ConnectionStrings__Global: Server=article-db-sqlserver,1433;Database=ArticlesGlobal;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      ArticleCache__ConnectionString: article-cache:6379,abortConnect=false
+      ArticleCache__SnapshotTtlSeconds: "900"
+      ArticleCacheRefresh__IntervalSeconds: "300"
+      ArticleCacheRefresh__RetryDelaySeconds: "10"
+      MONITORING_SERVICE_NAME: ArticleCacheWorker
+      MONITORING_SEQ_URL: http://seq:5341/
+      MONITORING_ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+    deploy:
+      replicas: 1
+    depends_on:
+      - article-db-sqlserver
+      - article-cache
+      - seq
+      - zipkin
+    networks:
+      - article-db
+      - article-cache
+      - monitoring
+  article-cache:
+    image: redis:8.2.2-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - article-cache
+
+  comment-cache:
+    image: redis:8.2.2-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:6381:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - comment-cache
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    user: "0:0"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - happy_headlines_prometheus_data:/prometheus
+    deploy:
+      replicas: 1
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-happy-headlines-local}
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - happy_headlines_grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    deploy:
+      replicas: 1
+    networks:
+      - monitoring
 
   seq:
     image: datalust/seq
@@ -262,7 +368,11 @@ networks:
   moderation-link:
   article-queue:
   monitoring:
+  article-cache:
+  comment-cache:
 
 volumes:
   happy_headlines_seq_data:
   happy_headlines_rabbitmq_data:
+  happy_headlines_prometheus_data:
+  happy_headlines_grafana_data:

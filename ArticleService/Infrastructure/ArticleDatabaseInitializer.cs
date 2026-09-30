@@ -37,7 +37,7 @@ public class ArticleDatabaseInitializer
             {
                 await using var db = _factory.Create(continent);
                 await db.Database.EnsureCreatedAsync(cancellationToken);
-                await EnsureQueueMessageSchemaAsync(db, cancellationToken);
+                await EnsureArticleSchemaAsync(db, cancellationToken);
                 _logger.LogInformation("Database ready for {Continent}.", continent);
                 return;
             }
@@ -70,7 +70,7 @@ public class ArticleDatabaseInitializer
         }
     }
 
-    private static Task EnsureQueueMessageSchemaAsync(
+    private static Task EnsureArticleSchemaAsync(
         ArticleDbContext db,
         CancellationToken cancellationToken)
     {
@@ -78,18 +78,53 @@ public class ArticleDatabaseInitializer
             """
             IF COL_LENGTH(N'[Articles]', N'SourceMessageId') IS NULL
             BEGIN
-                ALTER TABLE [Articles] ADD [SourceMessageId] uniqueidentifier NULL;
+                ALTER TABLE [Articles]
+                    ADD [SourceMessageId] uniqueidentifier NULL;
             END;
 
             IF NOT EXISTS (
                 SELECT 1
                 FROM sys.indexes
                 WHERE [name] = N'IX_Articles_SourceMessageId'
-                  AND [object_id] = OBJECT_ID(N'[Articles]'))
+                AND [object_id] = OBJECT_ID(N'[Articles]'))
             BEGIN
                 CREATE UNIQUE INDEX [IX_Articles_SourceMessageId]
                     ON [Articles] ([SourceMessageId])
                     WHERE [SourceMessageId] IS NOT NULL;
+            END;
+
+            IF COL_LENGTH(N'[Articles]', N'PublishedAtUtc') IS NULL
+            BEGIN
+                ALTER TABLE [Articles]
+                    ADD [PublishedAtUtc] datetimeoffset NULL;
+            END;
+
+            DECLARE @UnknownPublishedAt datetimeoffset = '1970-01-01T00:00:00+00:00';
+
+            UPDATE [Articles]
+            SET [PublishedAtUtc] = @UnknownPublishedAt
+            WHERE [PublishedAtUtc] IS NULL
+                OR [PublishedAtUtc] = '0001-01-01T00:00:00+00:00';
+
+            IF EXISTS (
+                SELECT 1
+                FROM sys.columns
+                WHERE [name] = N'PublishedAtUtc'
+                AND [object_id] = OBJECT_ID(N'[Articles]')
+                AND [is_nullable] = 1)
+            BEGIN
+                ALTER TABLE [Articles]
+                    ALTER COLUMN [PublishedAtUtc] datetimeoffset NOT NULL;
+            END;
+
+            IF NOT EXISTS (
+                SELECT 1
+                FROM sys.indexes
+                WHERE [name] = N'IX_Articles_PublishedAtUtc'
+                AND [object_id] = OBJECT_ID(N'[Articles]'))
+            BEGIN
+                CREATE INDEX [IX_Articles_PublishedAtUtc]
+                    ON [Articles] ([PublishedAtUtc]);
             END;
             """,
             cancellationToken);

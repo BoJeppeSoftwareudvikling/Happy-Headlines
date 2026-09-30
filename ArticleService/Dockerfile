@@ -6,6 +6,7 @@ WORKDIR /src
 COPY ["ArticleService/ArticleService.csproj", "ArticleService/"]
 COPY ["Messaging/Messaging.csproj", "Messaging/"]
 COPY ["Monitoring/Monitoring.csproj", "Monitoring/"]
+COPY ["ArticleCache.Contracts/ArticleCache.Contracts.csproj", "ArticleCache.Contracts/"]
 RUN dotnet restore "ArticleService/ArticleService.csproj"
 COPY . .
 WORKDIR "/src/ArticleService"
