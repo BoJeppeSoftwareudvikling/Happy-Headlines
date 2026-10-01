@@ -1,0 +1,677 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "description": "Small dashboard for the required ArticleCache and CommentCache behavior.",
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "description": "Hit ratios and exact lookup counters for ArticleCache and CommentCache.",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 100,
+      "panels": [],
+      "title": "Cache summary",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Hit ratio, hits and misses for ArticleCache during the selected period. A hit serves the article from Redis. A miss reads it from the global article database. A dash means there were no cache lookups in the selected period.",
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "noValue": "—"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Hit ratio"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Hits"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Misses"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "id": 5,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 15,
+          "valueSize": 28
+        },
+        "textMode": "value_and_name",
+        "wideLayout": false
+      },
+      "pluginVersion": "13.1.6",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "max(increase(happy_headlines_cache_hits_total{cache=\"article\"}[$__range])) / (max(increase(happy_headlines_cache_hits_total{cache=\"article\"}[$__range])) + max(increase(happy_headlines_cache_misses_total{cache=\"article\"}[$__range])))",
+          "instant": true,
+          "legendFormat": "Hit ratio",
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "max(increase(happy_headlines_cache_hits_total{cache=\"article\"}[$__range]))",
+          "instant": true,
+          "legendFormat": "Hits",
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "max(increase(happy_headlines_cache_misses_total{cache=\"article\"}[$__range]))",
+          "instant": true,
+          "legendFormat": "Misses",
+          "refId": "C"
+        }
+      ],
+      "title": "ArticleCache",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Hit ratio, hits and misses for CommentCache during the selected period. A hit serves the article comment list from Redis. A miss reads the list from CommentDatabase and stores it in Redis. A dash means there were no cache lookups in the selected period.",
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "noValue": "—"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Hit ratio"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Hits"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Misses"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 15,
+          "valueSize": 28
+        },
+        "textMode": "value_and_name",
+        "wideLayout": false
+      },
+      "pluginVersion": "13.1.6",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "max(increase(happy_headlines_cache_hits_total{cache=\"comment\"}[$__range])) / (max(increase(happy_headlines_cache_hits_total{cache=\"comment\"}[$__range])) + max(increase(happy_headlines_cache_misses_total{cache=\"comment\"}[$__range])))",
+          "instant": true,
+          "legendFormat": "Hit ratio",
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "max(increase(happy_headlines_cache_hits_total{cache=\"comment\"}[$__range]))",
+          "instant": true,
+          "legendFormat": "Hits",
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "max(increase(happy_headlines_cache_misses_total{cache=\"comment\"}[$__range]))",
+          "instant": true,
+          "legendFormat": "Misses",
+          "refId": "C"
+        }
+      ],
+      "title": "CommentCache",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "description": "The periodic ArticleCache refresh and the CommentCache capacity and LRU behavior required by the assignment.",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "id": 102,
+      "panels": [],
+      "title": "Required cache behavior",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Article refresh is green when the latest successful refresh is less than 90 seconds old. Cached articles shows the current CommentCache size with a maximum of 30. LRU removals counts entries removed during the selected period because the cache exceeded that limit.",
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "noValue": "NO DATA"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Article refresh"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "0": {
+                        "color": "red",
+                        "text": "● Stale"
+                      },
+                      "1": {
+                        "color": "green",
+                        "text": "● Fresh"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Cached articles"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: / 30"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "LRU removals"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
+      "id": 11,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 15,
+          "valueSize": 24
+        },
+        "textMode": "value_and_name",
+        "wideLayout": false
+      },
+      "pluginVersion": "13.1.6",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "time() - max(happy_headlines_cache_last_refresh_success_timestamp_seconds{cache=\"article\"}) < bool 90",
+          "instant": true,
+          "legendFormat": "Article refresh",
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "max(happy_headlines_cache_entries{cache=\"comment\"})",
+          "instant": true,
+          "legendFormat": "Cached articles",
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "sum(increase(happy_headlines_cache_evictions_total{cache=\"comment\"}[$__range]))",
+          "instant": true,
+          "legendFormat": "LRU removals",
+          "refId": "C"
+        }
+      ],
+      "title": "Refresh and capacity",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "description": "Cache effectiveness and request traffic across the selected dashboard period.",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 10
+      },
+      "id": 101,
+      "panels": [],
+      "title": "Activity over time",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Running hit ratio based on the hit and miss counters stored in Redis. Each point shows the total ratio recorded at that time. The dashboard time range only changes which timestamps are visible.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Hit ratio",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            },
+            "axisSoftMin": 0
+          },
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent"
+              }
+            ]
+          },
+          "unit": "percentunit",
+          "max": 1
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ArticleCache"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CommentCache"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 11
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "max(happy_headlines_cache_hits_total{cache=\"article\"}) / (max(happy_headlines_cache_hits_total{cache=\"article\"}) + max(happy_headlines_cache_misses_total{cache=\"article\"}))",
+          "legendFormat": "ArticleCache",
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "max(happy_headlines_cache_hits_total{cache=\"comment\"}) / (max(happy_headlines_cache_hits_total{cache=\"comment\"}) + max(happy_headlines_cache_misses_total{cache=\"comment\"}))",
+          "legendFormat": "CommentCache",
+          "refId": "B"
+        }
+      ],
+      "title": "Hit ratio over time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "ArticleService and CommentService request traffic per minute across the selected dashboard period.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Requests/min",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "unit": "reqpm"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 11
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (service) (rate(happy_headlines_service_requests_total[$__rate_interval])) * 60",
+          "legendFormat": "{{service}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Requests per minute",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 42,
+  "tags": [
+    "happy-headlines",
+    "cache",
+    "prometheus"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Happy Headlines Cache Monitoring",
+  "uid": "happy-headlines-cache",
+  "version": 5
+}

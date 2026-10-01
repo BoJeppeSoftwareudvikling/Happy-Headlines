@@ -18,4 +18,8 @@
     <PackageReference Include="Serilog.Sinks.Seq" Version="9.1.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
 </Project>

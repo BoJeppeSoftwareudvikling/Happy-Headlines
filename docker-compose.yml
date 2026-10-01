@@ -50,16 +50,21 @@ services:
       RabbitMq__Port: "5672"
       RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER}
       RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS}
+      ArticleCache__ConnectionString: article-cache:6379
+      ArticleCache__WindowDays: "14"
+      ArticleCache__RefreshIntervalSeconds: "30"
     deploy:
       replicas: 3
     depends_on:
       - article-db-sqlserver
       - rabbitmq
+      - article-cache
       - seq
       - zipkin
     networks:
       - article-db
       - article-queue
+      - article-cache-network
       - monitoring
 
   publisher-service:
@@ -136,6 +141,7 @@ services:
       ProfanityService__TimeoutSeconds: "2"
       ProfanityService__FailureThreshold: "3"
       ProfanityService__BreakDurationSeconds: "30"
+      CommentCache__ConnectionString: comment-cache:6379
       MONITORING_SERVICE_NAME: CommentService
       MONITORING_SEQ_URL: http://seq:5341/
       MONITORING_ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
@@ -143,11 +149,13 @@ services:
       replicas: 2
     depends_on:
       - comment-db-sqlserver
+      - comment-cache
       - seq
       - zipkin
     networks:
       - comment-db
       - moderation-link
+      - comment-cache-network
       - monitoring
 
   profanity-service:
@@ -195,6 +203,50 @@ services:
       - "9411:9411"
     networks:
       - monitoring
+
+  article-cache:
+    image: redis:8.10.2-alpine
+    ports:
+      - "127.0.0.1:6380:6379"
+    networks:
+      - article-cache-network
+
+  comment-cache:
+    image: redis:8.10.2-alpine
+    ports:
+      - "127.0.0.1:6381:6379"
+    networks:
+      - comment-cache-network
+
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/cache-alerts.yml:/etc/prometheus/rules/cache-alerts.yml:ro
+      - happy_headlines_prometheus_data:/prometheus
+    networks:
+      - monitoring
+    depends_on:
+      - article-service
+      - comment-service
+
+  grafana:
+    image: grafana/grafana:13.1.6
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - happy_headlines_grafana_data:/var/lib/grafana
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
 
   rabbitmq:
     image: rabbitmq:4-management
@@ -261,8 +313,12 @@ networks:
   profanity-db:
   moderation-link:
   article-queue:
+  article-cache-network:
+  comment-cache-network:
   monitoring:
 
 volumes:
   happy_headlines_seq_data:
   happy_headlines_rabbitmq_data:
+  happy_headlines_prometheus_data:
+  happy_headlines_grafana_data:
