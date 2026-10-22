@@ -21,6 +21,38 @@ docker-compose.yml  APIs, SQL Server instances, RabbitMQ, Seq, and Zipkin
 .env.example        Template for SQL and RabbitMQ credentials (copy to .env)
 ```
 
+## CI/CD: versioned service images
+
+Every push to `main` or `master` runs `.github/workflows/build-and-deliver-images.yml`.
+The workflow builds all six deployable services and publishes their Docker images to
+the GitHub Container Registry (GHCR).
+
+All images from the same workflow run receive the same version number:
+
+```text
+1.0.<GitHub run number>
+```
+
+Each image also receives an immutable commit tag in the form `sha-<12 characters>`.
+The workflow deliberately does not publish a mutable `latest` tag, so a deployment
+must select an explicit version.
+
+For this repository, a successful run publishes:
+
+```text
+ghcr.io/bojeppesoftwareudvikling/happy-headlines-draft-service:1.0.<run>
+ghcr.io/bojeppesoftwareudvikling/happy-headlines-article-service:1.0.<run>
+ghcr.io/bojeppesoftwareudvikling/happy-headlines-comment-service:1.0.<run>
+ghcr.io/bojeppesoftwareudvikling/happy-headlines-profanity-service:1.0.<run>
+ghcr.io/bojeppesoftwareudvikling/happy-headlines-publisher-service:1.0.<run>
+ghcr.io/bojeppesoftwareudvikling/happy-headlines-newsletter-service:1.0.<run>
+```
+
+The workflow authenticates with the repository's built-in `GITHUB_TOKEN`; no
+personal registry token is required. It grants that token read access to the source
+and write access to packages. Package visibility is managed in GitHub after the first
+successful publication.
+
 Secrets are not committed. Copy:
 
 - `.env.example` → `.env`
