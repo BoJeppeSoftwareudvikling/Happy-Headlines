@@ -128,7 +128,7 @@ Host SQL ports (DBeaver: SQL Server, `sa`, trust server certificate): drafts **1
 
 ### SubscriberService release toggle
 
-Start FeatureHub once and complete its initial setup at `http://127.0.0.1:8085`. Create a Boolean feature with the key `SubscriberServiceEnabled`, create a server-side SDK key for its environment, and put that key in `.env` as `FEATUREHUB_API_KEY`.
+Start FeatureHub once and complete its initial setup at `http://127.0.0.1:8085`. Create a Boolean feature with the key `subscriberservice-release-toggle`, create a server-side SDK key for its environment, and put that key in `.env` as `FEATUREHUB_API_KEY`.
 
 The feature defaults to disabled when SubscriberService cannot reach FeatureHub or has no valid SDK key. When the feature is off, every SubscriberService API action returns `404`, and its outbox publisher pauses. Turning the feature on or off in FeatureHub changes the running service without rebuilding or redeploying it.
 
@@ -192,4 +192,5 @@ Continent is a query parameter on Article GET/PUT/DELETE (`?continent=Europe`). 
 
 - [Project description](Happy%20Headlines%20-%20Projektbeskrivelse.md)
 - [Architecture](docs/architecture/README.md)
+- [Week 44: SubscriberService and recovery](docs/architecture/week-44-subscriber-service.md)
 - [Project requirements](Project%20requirements.md)
