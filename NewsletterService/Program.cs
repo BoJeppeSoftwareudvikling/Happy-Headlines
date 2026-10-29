@@ -14,8 +14,12 @@ try
     builder.Services.AddSwaggerGen();
     builder.Services.Configure<RabbitMqOptions>(
         builder.Configuration.GetSection(RabbitMqOptions.SectionName));
+    builder.Services.Configure<SubscriberQueueOptions>(
+        builder.Configuration.GetSection(SubscriberQueueOptions.SectionName));
     builder.Services.AddSingleton<NewsletterFeed>();
+    builder.Services.AddSingleton<WelcomeEmailSender>();
     builder.Services.AddHostedService<ArticlePublishedConsumer>();
+    builder.Services.AddHostedService<SubscriberRegisteredConsumer>();
 
     var app = builder.Build();
 

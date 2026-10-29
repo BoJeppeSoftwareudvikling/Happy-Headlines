@@ -15,16 +15,17 @@ CommentService/     ASP.NET Core Web API (comments + Polly circuit breaker)
 ProfanityService/   ASP.NET Core Web API (profanity word list)
 PublisherService/   ASP.NET Core Web API (moderates and publishes articles)
 NewsletterService/  ASP.NET Core Web API + article queue consumer
+SubscriberService/  ASP.NET Core Web API (subscribers + transactional outbox)
 Messaging/          Shared RabbitMQ topology, contracts, and trace propagation
 docs/               Architecture notes and C4 diagrams
-docker-compose.yml  APIs, SQL Server instances, RabbitMQ, Seq, and Zipkin
-.env.example        Template for SQL and RabbitMQ credentials (copy to .env)
+docker-compose.yml  APIs, SQL Server, RabbitMQ, FeatureHub, Seq, and Zipkin
+.env.example        Template for local credentials and FeatureHub SDK key
 ```
 
 ## CI/CD: versioned service images
 
 Every push to `main` or `master` runs `.github/workflows/build-and-deliver-images.yml`.
-The workflow builds all six deployable services and publishes their Docker images to
+The workflow builds all seven deployable services and publishes their Docker images to
 the GitHub Container Registry (GHCR).
 
 All images from the same workflow run receive the same version number:
@@ -46,6 +47,7 @@ ghcr.io/bojeppesoftwareudvikling/happy-headlines-comment-service:1.0.<run>
 ghcr.io/bojeppesoftwareudvikling/happy-headlines-profanity-service:1.0.<run>
 ghcr.io/bojeppesoftwareudvikling/happy-headlines-publisher-service:1.0.<run>
 ghcr.io/bojeppesoftwareudvikling/happy-headlines-newsletter-service:1.0.<run>
+ghcr.io/bojeppesoftwareudvikling/happy-headlines-subscriber-service:1.0.<run>
 ```
 
 The workflow authenticates with the repository's built-in `GITHUB_TOKEN`; no
@@ -62,6 +64,7 @@ Secrets are not committed. Copy:
 - `ProfanityService/appsettings.example.json` → `appsettings.json`
 - `PublisherService/appsettings.example.json` → `appsettings.json`
 - `NewsletterService/appsettings.example.json` → `appsettings.json`
+- `SubscriberService/appsettings.example.json` → `appsettings.json`
 
 Use the same SQL password in `.env` (`MSSQL_SA_PASSWORD`) and in the appsettings connection strings.
 Use the same RabbitMQ credentials in `.env` and each service's `RabbitMq` appsettings section when running with `dotnet run`.
@@ -89,9 +92,9 @@ If the node is already in a swarm, skip `swarm init`. If `swarm init` cannot pic
 docker swarm init --advertise-addr 127.0.0.1
 ```
 
-Default replicas in `docker-compose.yml`: DraftService **2**, ArticleService **3**, CommentService **2**, ProfanityService **2**, PublisherService **2**, and one replica for NewsletterService and each infrastructure container.
+Default replicas in `docker-compose.yml`: DraftService **2**, ArticleService **3**, CommentService **2**, ProfanityService **2**, PublisherService **2**, and one replica for NewsletterService, SubscriberService, and each infrastructure container.
 
-Each database-backed API can reach only its own database network (`draft-db`, `article-db`, `comment-db`, `profanity-db`). CommentService, PublisherService, and ProfanityService share `moderation-link`; PublisherService, ArticleService, NewsletterService, and RabbitMQ share `article-queue`.
+Each database-backed API can reach only its own database network (`draft-db`, `article-db`, `comment-db`, `profanity-db`, `subscriber-db`). The subscriber swimlane has its own SQL Server and RabbitMQ instance. NewsletterService consumes the durable subscriber queue, so it never calls SubscriberService or its database synchronously. Failure in the subscriber database or API therefore does not stop article newsletter processing.
 
 PublisherService injects W3C trace context into RabbitMQ message headers. ArticleService and NewsletterService extract it and start consumer spans, so one publication remains a single trace across the HTTP and queue boundaries. RabbitMQ uses a fan-out exchange with separate durable queues because both consumers must receive every article.
 
@@ -114,11 +117,22 @@ Use **`http://127.0.0.1`**, not `localhost`. Swarm’s published port is IPv4; `
 - Profanity: http://127.0.0.1:5050/swagger
 - Publisher: http://127.0.0.1:5052/swagger
 - Newsletter: http://127.0.0.1:5053/swagger
-- RabbitMQ management: http://127.0.0.1:15672
+- Subscribers: http://127.0.0.1:5054/swagger
+- Article RabbitMQ management: http://127.0.0.1:15672
+- Subscriber RabbitMQ management: http://127.0.0.1:15673
+- FeatureHub: http://127.0.0.1:8085
 - Which Article replica answered: http://127.0.0.1:8080/Article/instance
 - Which Draft replica answered: http://127.0.0.1:5051/Draft/instance
 
-Host SQL ports (DBeaver: SQL Server, `sa`, trust server certificate): drafts **1438**, articles **1437**, comments **1435**, profanity **1436**. A native SQL Server can keep **1433** (and often **1434** for DAC).
+Host SQL ports (DBeaver: SQL Server, `sa`, trust server certificate): drafts **1438**, articles **1437**, comments **1435**, profanity **1436**, subscribers **1439**. A native SQL Server can keep **1433** (and often **1434** for DAC).
+
+### SubscriberService release toggle
+
+Start FeatureHub once and complete its initial setup at `http://127.0.0.1:8085`. Create a Boolean feature with the key `SubscriberServiceEnabled`, create a server-side SDK key for its environment, and put that key in `.env` as `FEATUREHUB_API_KEY`.
+
+The feature defaults to disabled when SubscriberService cannot reach FeatureHub or has no valid SDK key. When the feature is off, every SubscriberService API action returns `404`, and its outbox publisher pauses. Turning the feature on or off in FeatureHub changes the running service without rebuilding or redeploying it.
+
+`POST /Subscriber` stores the subscriber and an outbox message in one SQL transaction. The background publisher forwards that message to the dedicated subscriber queue. NewsletterService acknowledges the message only after its welcome-email handler succeeds. The current handler logs the welcome email because no SMTP or email-provider credentials are part of the project requirements.
 
 ### Chaos: stop ProfanityService
 
@@ -155,7 +169,7 @@ Do not use `docker compose up` for the full stack while `deploy.replicas` is gre
 Start the databases and RabbitMQ:
 
 ```bash
-docker compose up draft-db-sqlserver article-db-sqlserver comment-db-sqlserver profanity-db-sqlserver rabbitmq -d
+docker compose up draft-db-sqlserver article-db-sqlserver comment-db-sqlserver profanity-db-sqlserver subscriber-db-sqlserver rabbitmq subscriber-queue featurehub -d
 ```
 
 If the stack is already running, skip this and use the Swarm SQL ports below.
@@ -168,6 +182,7 @@ If the stack is already running, skip this and use the Swarm SQL ports below.
 | ProfanityService | `http://localhost:5050` | http://localhost:5050/swagger |
 | PublisherService | `http://localhost:5052` | http://localhost:5052/swagger |
 | NewsletterService | `http://localhost:5053` | http://localhost:5053/swagger |
+| SubscriberService | `http://localhost:5054` | http://localhost:5054/swagger |
 
 Stop these `dotnet run` processes before `stack deploy`, or 5049/5050 will clash with Swarm.
 

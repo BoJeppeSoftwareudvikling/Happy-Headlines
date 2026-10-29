@@ -109,15 +109,55 @@ services:
       RabbitMq__Port: "5672"
       RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER}
       RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS}
+      SubscriberQueue__HostName: subscriber-queue
+      SubscriberQueue__Port: "5672"
+      SubscriberQueue__UserName: ${RABBITMQ_DEFAULT_USER}
+      SubscriberQueue__Password: ${RABBITMQ_DEFAULT_PASS}
       MONITORING_SERVICE_NAME: NewsletterService
       MONITORING_SEQ_URL: http://seq:5341/
       MONITORING_ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
     depends_on:
       - rabbitmq
+      - subscriber-queue
       - seq
       - zipkin
     networks:
       - article-queue
+      - subscriber-queue-network
+      - monitoring
+
+  subscriber-service:
+    image: subscriber-service:latest
+    build:
+      context: .
+      dockerfile: SubscriberService/Dockerfile
+    ports:
+      - "5054:5054"
+    environment:
+      ASPNETCORE_URLS: http://+:5054
+      ASPNETCORE_ENVIRONMENT: Development
+      DOTNET_EnableDiagnostics: "0"
+      ConnectionStrings__SubscriberService: Server=subscriber-db-sqlserver,1433;Database=Subscribers;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      SubscriberQueue__HostName: subscriber-queue
+      SubscriberQueue__Port: "5672"
+      SubscriberQueue__UserName: ${RABBITMQ_DEFAULT_USER}
+      SubscriberQueue__Password: ${RABBITMQ_DEFAULT_PASS}
+      FeatureHub__EdgeUrl: http://featurehub:8085
+      FeatureHub__SdkKey: ${FEATUREHUB_API_KEY}
+      FeatureHub__FeatureKey: subscriberservice-release-toggle
+      MONITORING_SERVICE_NAME: SubscriberService
+      MONITORING_SEQ_URL: http://seq:5341/
+      MONITORING_ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+    depends_on:
+      - subscriber-db-sqlserver
+      - subscriber-queue
+      - featurehub
+      - seq
+      - zipkin
+    networks:
+      - subscriber-db
+      - subscriber-queue-network
+      - feature-management
       - monitoring
 
   comment-service:
@@ -214,6 +254,34 @@ services:
     networks:
       - article-queue
 
+  subscriber-queue:
+    image: rabbitmq:4-management
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - happy_headlines_subscriber_queue_data:/var/lib/rabbitmq
+    networks:
+      - subscriber-queue-network
+
+  featurehub:
+    image: featurehub/party-server:latest
+    restart: always
+    ports:
+      - "8085:8085"
+    volumes:
+      - happy_headlines_featurehub_data:/db
+    networks:
+      - feature-management
+
   article-db-sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
@@ -233,6 +301,16 @@ services:
       - "1438:1433"
     networks:
       - draft-db
+
+  subscriber-db-sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+    ports:
+      - "1439:1433"
+    networks:
+      - subscriber-db
   
   comment-db-sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -259,10 +337,15 @@ networks:
   article-db:
   comment-db:
   profanity-db:
+  subscriber-db:
   moderation-link:
   article-queue:
+  subscriber-queue-network:
+  feature-management:
   monitoring:
 
 volumes:
   happy_headlines_seq_data:
   happy_headlines_rabbitmq_data:
+  happy_headlines_subscriber_queue_data:
+  happy_headlines_featurehub_data:

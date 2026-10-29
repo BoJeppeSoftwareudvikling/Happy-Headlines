@@ -45,6 +45,9 @@ jobs:
           - service: NewsletterService
             image: newsletter-service
             dockerfile: NewsletterService/Dockerfile
+          - service: SubscriberService
+            image: subscriber-service
+            dockerfile: SubscriberService/Dockerfile
 
     steps:
       - name: Check out repository
