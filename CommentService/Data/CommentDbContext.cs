@@ -7,4 +7,10 @@ public class CommentDbContext : DbContext
 {
     public CommentDbContext(DbContextOptions<CommentDbContext> options) : base(options) { }
     public DbSet<Comment> Comments => Set<Comment>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Comment>()
+            .HasIndex(comment => new { comment.ArticleId, comment.CreatedAtUtc });
+    }
 }

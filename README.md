@@ -16,6 +16,7 @@ ProfanityService/   ASP.NET Core Web API (profanity word list)
 PublisherService/   ASP.NET Core Web API (moderates and publishes articles)
 NewsletterService/  ASP.NET Core Web API + article queue consumer
 SubscriberService/  ASP.NET Core Web API (subscribers + transactional outbox)
+Sustainability.Tests/ Tests and repeatable measurements for the Week 45 GAF changes
 Messaging/          Shared RabbitMQ topology, contracts, and trace propagation
 docs/               Architecture notes and C4 diagrams
 docker-compose.yml  APIs, SQL Server, RabbitMQ, FeatureHub, Seq, and Zipkin
@@ -193,4 +194,5 @@ Continent is a query parameter on Article GET/PUT/DELETE (`?continent=Europe`). 
 - [Project description](Happy%20Headlines%20-%20Projektbeskrivelse.md)
 - [Architecture](docs/architecture/README.md)
 - [Week 44: SubscriberService and recovery](docs/architecture/week-44-subscriber-service.md)
+- [Week 45: Green Architecture Framework improvements](docs/sustainability/week-45-gaf-improvements.md)
 - [Project requirements](Project%20requirements.md)
