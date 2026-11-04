@@ -1,6 +1,8 @@
 using ArticleService.Data;
+using ArticleService.Dtos;
 using ArticleService.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace ArticleService.Controllers;
 
@@ -9,10 +11,18 @@ namespace ArticleService.Controllers;
 public class ArticleController(ArticleDbContextFactory factory) : ControllerBase
 {
     [HttpGet]
-    public ActionResult<IEnumerable<Article>> GetAll([FromQuery] Continent continent)
+    public ActionResult<IReadOnlyList<ArticleSummaryDto>> GetAll([FromQuery] Continent continent)
     {
         using var db = factory.Create(continent);
-        return Ok(db.Articles.ToList());
+        var articles = db.Articles
+            .AsNoTracking()
+            .Select(article => new ArticleSummaryDto(
+                article.Id,
+                article.Title,
+                article.Continent))
+            .ToList();
+
+        return Ok(articles);
     }
 
     [HttpGet("instance")]

@@ -1,8 +1,9 @@
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using ProfanityService.Data;
 using ProfanityService.Dtos;
 using ProfanityService.Models;
+using ProfanityService.Services;
 
 namespace ProfanityService.Controllers;
 
@@ -13,35 +14,18 @@ public class ProfanityController(ProfanityDbContextFactory factory) : Controller
     [HttpPost("check")]
     public ActionResult<ProfanityCheckResponseDto> Check([FromBody] ProfanityCheckRequestDto request)
     {
-        var text = request.Text.Trim().ToLowerInvariant();
-
         using var db = factory.Create();
         var words = db.Profanity
+            .AsNoTracking()
             .Select(entry => entry.Word)
             .ToList();
-
-        var matchedWords = words
-            .Select(NormalizeWord)
-            .Where(word => word.Length > 0)
-            .Where(word => Regex.IsMatch(text, WordPattern(word), RegexOptions.IgnoreCase))
-            .Distinct()
-            .ToList();
-
-        var filteredText = text;
-        foreach (var word in matchedWords)
-        {
-            filteredText = Regex.Replace(
-                filteredText,
-                WordPattern(word),
-                new string('*', word.Length),
-                RegexOptions.IgnoreCase);
-        }
+        var result = ProfanityTextFilter.Filter(request.Text, words);
 
         return Ok(new ProfanityCheckResponseDto
         {
-            ContainsProfanity = matchedWords.Count > 0,
-            FilteredText = filteredText,
-            MatchedWords = matchedWords.ToList()
+            ContainsProfanity = result.MatchedWords.Count > 0,
+            FilteredText = result.FilteredText,
+            MatchedWords = result.MatchedWords.ToList()
         });
     }
 
@@ -76,7 +60,4 @@ public class ProfanityController(ProfanityDbContextFactory factory) : Controller
 
     private static string NormalizeWord(string? word) =>
         word?.Trim().ToLowerInvariant() ?? string.Empty;
-
-    private static string WordPattern(string word) =>
-        $@"\b{Regex.Escape(word)}\b";
 }
