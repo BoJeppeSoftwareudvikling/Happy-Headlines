@@ -122,6 +122,7 @@ public class ArticlePublishedConsumer(
                     Title = message.Title,
                     Content = message.Content,
                     Continent = continent,
+                    PublishedAtUtc = message.PublishedAtUtc,
                     SourceMessageId = message.MessageId
                 };
                 db.Articles.Add(article);
